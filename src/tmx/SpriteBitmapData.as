@@ -79,7 +79,8 @@ package tmx
       
       public function hasPxy() : Boolean
       {
-         return int(this.targetXml.@px) != 0 || int(this.targetXml.@px) != 0;
+         // return int(this.targetXml.@px) != 0 || int(this.targetXml.@px) != 0;
+         return int(this.targetXml.@px) != 0 || int(this.targetXml.@py) != 0; //
       }
    }
 }

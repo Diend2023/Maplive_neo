@@ -297,10 +297,13 @@ package views.observe
          }
          else
          {
-            this.timeline.currentFrame.data.@frameX = -this._npc.bitmap.x;
-            this.timeline.currentFrame.data.@frameY = -this._npc.bitmap.y;
+            // this.timeline.currentFrame.data.@frameX = -this._npc.bitmap.x;
+            // this.timeline.currentFrame.data.@frameY = -this._npc.bitmap.y;
+            this.timeline.currentFrame.data.@frameX = int(this.px.text) - this._npc.bitmap.x; //
+            this.timeline.currentFrame.data.@frameY = int(this.py.text) - this._npc.bitmap.y; //
             this.timeline.currentFrame.data.@frameWidth = this._npc.bitmap.width;
-            this.timeline.currentFrame.data.@frameHeight = this._npc.bitmap.width;
+            // this.timeline.currentFrame.data.@frameHeight = this._npc.bitmap.width;
+            this.timeline.currentFrame.data.@frameHeight = this._npc.bitmap.height;  //
          }
          this.onInputChange();
          this.stopDrag();
