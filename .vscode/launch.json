@@ -1,0 +1,13 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "swf",
+			"request": "launch",
+			"name": "Launch AIR Application",
+			"program": "${workspaceFolder}/bin/Maplive-app.xml",
+			"profile": "desktop",
+			"runtimeExecutable": "E:/AIRSDK/AIRSDK_51.3.3/bin/adl.exe"
+		}
+	]
+}
