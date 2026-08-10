@@ -127,6 +127,12 @@ package views.observe
       private var _isDrop:Boolean = false;
       
       private var _isPlay:Boolean = false;
+
+      private var _previewSpr:Sprite; // 长按预览上一帧/下一帧
+
+      private var _previewing:Boolean = false; //
+
+      private var _previewTarget:int = -1; //
       
       private var _hitSprite:HitDarwSprite;
       
@@ -436,6 +442,19 @@ package views.observe
       
       override public function onKeyUp(param1:KeyboardEvent) : void
       {
+         if(this._previewing && (param1.keyCode == 188 || param1.keyCode == 190)) //
+         { //
+            if(this._previewSpr && this._npc) //
+            { //
+               this._npc.removeChild(this._previewSpr); //
+            } //
+            this._previewSpr = null; //
+            this._previewing = false; //
+            this.timeline.frame = this._previewTarget; // 真正切换到预览帧
+            this.onSelect(this.timeline.currentFrame); //
+            this._previewTarget = -1; //
+            return; //
+         } //
          switch(param1.keyCode)
          {
             case 188:
@@ -448,6 +467,65 @@ package views.observe
          }
       }
       
+      override public function onKeyDown(param1:KeyboardEvent) : void //
+      { //
+         // 方向键微调（步长1），按工具模式分别调整
+         if(param1.keyCode == 37 || param1.keyCode == 38 || param1.keyCode == 39 || param1.keyCode == 40) //
+         { //
+            if(this._npc && !this._isDrop) //
+            { //
+               var dx:int = param1.keyCode == 37 ? -1 : (param1.keyCode == 39 ? 1 : 0); //
+               var dy:int = param1.keyCode == 38 ? -1 : (param1.keyCode == 40 ? 1 : 0); //
+               this._npc.bitmap.x += dx; //
+               this._npc.bitmap.y += dy; //
+               if(this.tools.selectedIndex == 1) //
+               { //
+                  this.px.text = String(this._npc.bitmap.x + this._npc.getData().currentFrameX); //
+                  this.py.text = String(this._npc.bitmap.y + this._npc.getData().currentFrameY); //
+               } //
+               else //
+               { //
+                  this.timeline.currentFrame.data.@frameX = int(this.px.text) - this._npc.bitmap.x; //
+                  this.timeline.currentFrame.data.@frameY = int(this.py.text) - this._npc.bitmap.y; //
+                  this.timeline.currentFrame.data.@frameWidth = this._npc.bitmap.width; //
+                  this.timeline.currentFrame.data.@frameHeight = this._npc.bitmap.height; //
+               } //
+               this.onInputChange(); //
+            } //
+            return; //
+         } //
+         // 长按预览上一帧/下一帧
+         if(param1.keyCode != 188 && param1.keyCode != 190) //
+         { //
+            return; //
+         } //
+         if(!this._npc || this._isDrop) //
+         { //
+            return; //
+         } //
+         if(this._isPlay) //
+         { //
+            this.onPlayOrStop(null); // 预览时停止播放，避免帧循环干扰
+         } //
+         var total:int = this._npc.getData().length(); //
+         var cur:int = this.timeline.currentFrame.id; //
+         this._previewTarget = param1.keyCode == 188 ? (cur - 1 + total) % total : (cur + 1) % total; //
+         // 移除旧的预览副本
+         if(this._previewSpr) //
+         { //
+            this._npc.removeChild(this._previewSpr); //
+            this._previewSpr = null; //
+         } //
+         // 创建半透明预览副本，叠加在当前帧之上
+         this._previewSpr = new Sprite(); //
+         var bmp:Bitmap = new Bitmap(); //
+         this._npc.getData().drawBitmap(bmp,this._previewTarget,this._previewSpr); //
+         this._previewSpr.addChild(bmp); //
+         this._previewSpr.alpha = 0.5; //
+         this._npc.addChildAt(this._previewSpr,1); // 插到 _spr 之后、十字线之下
+         this._previewing = true; //
+      } //
+
       public function updateXmlData(param1:XML) : void
       {
          var _loc5_:Object = null;
