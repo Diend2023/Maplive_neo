@@ -190,6 +190,17 @@ package tmx
          }
          return null;
       }
+
+      override public function clear() : void //
+      { //
+         if(this.bitmapData) //
+         { //
+            // bitmapData 来自 pool 子图，由 SpriteBitmapData.dispose() 统一释放，这里只断引用
+            this.bitmapData = null; //
+         } //
+         this.removeChildren(); //
+      } //
+
    }
 }
 

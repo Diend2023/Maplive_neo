@@ -1806,9 +1806,34 @@ package views.observe
             }
             _loc2_++;
          }
+         // 清理 StarlingMap 内部所有节点
+         this.clearNode(this._starlingMap.npcNode); // 
+         this.clearNode(this._starlingMap.eventNode); // 
+         this.clearNode(this._starlingMap.dataNode); // 
+         this.clearNode(this._starlingMap.mapNode); // 
+         this.clearNode(this._starlingMap.bottomNode); // 
+         this.clearNode(this._starlingMap.topNode); // 
+         this._starlingMap.npcNode.removeChildren(); // 
+         this._starlingMap.eventNode.removeChildren(); // 
+         this._starlingMap.dataNode.removeChildren(); // 
          this._spriteXmlManage.discarded();
       }
       
+      private function clearNode(param1:DisplayObjectContainer) : void // 
+      { //
+         if(!param1) return; // 
+         var _loc3_:int = param1.numChildren - 1; // 
+         while(_loc3_ >= 0) //
+         { //
+            var obj:DisplayObject = param1.getChildAt(_loc3_); // 
+            if(obj is SaveObject)
+            { //
+               (obj as SaveObject).clear(); // 
+            } // 
+            _loc3_--; // 
+         } // 
+      } // 
+
       private function _TMXObserve_Array1_c() : Array
       {
          return [this._TMXObserve_HDividedBox1_c(),this._TMXObserve_BorderContainer2_c(),this._TMXObserve_BorderContainer3_c()];

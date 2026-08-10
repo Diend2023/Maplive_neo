@@ -82,6 +82,29 @@ package tmx
          // return int(this.targetXml.@px) != 0 || int(this.targetXml.@px) != 0;
          return int(this.targetXml.@px) != 0 || int(this.targetXml.@py) != 0; //
       }
+
+      // 释放池内所有子图 BitmapData
+      public function dispose() : void //
+      { //
+         var _loc1_:Object = null; //
+         for(_loc1_ in this.pool) //
+         { //
+            var bmp:BitmapData = this.pool[_loc1_].bitmap as BitmapData; //
+            if(bmp) //
+            { //
+               bmp.dispose(); //
+            } //
+            delete this.pool[_loc1_]; // 
+         } //
+         if(this.targetBitmapData) //
+         { //
+            this.targetBitmapData.dispose(); //
+            this.targetBitmapData = null; // 
+         } //
+         this.pool = null; // 
+         this.targetXml = null; // 
+      } //
+
    }
 }
 

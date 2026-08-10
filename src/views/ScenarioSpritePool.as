@@ -345,6 +345,7 @@ package views
          _loc1_.height = 26;
          _loc1_.setStyle("icon","spritePool/remove.png");
          _loc1_.setStyle("skinClass",IconButtonSkin);
+         _loc1_.addEventListener("click",this.___ScenarioSpritePool_Button2_click); // 
          if(!_loc1_.document)
          {
             _loc1_.document = this;
@@ -352,6 +353,29 @@ package views
          return _loc1_;
       }
       
+      public function ___ScenarioSpritePool_Button2_click(param1:MouseEvent) : void // 
+      { //
+         this.onRemove(); // 
+      } // 
+
+      protected function onRemove() : void // 
+      { //
+         if(!this.drop.selectedItem) //
+         { //
+            return; // 
+         } //
+         var name:String = this.drop.selectedItem.name; // 
+         this.dataSprites.removeItemAt(this.drop.selectedIndex); // 
+         if(this.spriteXMLManage) // 
+         { //
+            this.spriteXMLManage.removeSpriteBitmapData(name); // 
+         } // 
+         if(this.dataSprites.length > 0) // 
+         { //
+            this.drop.selectedIndex = 0; // 
+         } // 
+      } // 
+
       private function _ScenarioSpritePool_List1_i() : List
       {
          var _loc1_:List = new List();

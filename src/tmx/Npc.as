@@ -127,6 +127,14 @@ package tmx
          }
          return ["isCanHit","isThrough","liveRectEvent"];
       }
+
+      override public function clear() : void // 
+      { //
+         this._bitmap = null; // 
+         this._data = null; // 
+         this.removeChildren(); // 
+      } // 
+
    }
 }
 
