@@ -4,15 +4,13 @@ Maplive反编译源码的修改版
 
 ## 项目来源
 
-本项目是一个 Flex / AIR 反编译重建的源码工程，源程序为 **Maplive**（一款基于 ActionScript 3 / Adobe AIR 的 2D 地图编辑器，配合 TMX 地图格式使用）。
-
-- 原始 SWF 经 FFDec（JPEXS Free Flash Decompiler）反编译得到全部 ActionScript 源码，存放于 `src/` 目录。
-- 项目可编译、可运行，已修复反编译重建过程中的若干启动问题（详见下文"已知问题"）。
+来源于[Maplive_source](https://github.com/Diend2023/Maplive_source)
+>一个 Flex / AIR 反编译重建的源码工程，源程序为 **Maplive**（一款基于 ActionScript 3 / Adobe AIR 的 2D 地图编辑器，配合 TMX 地图格式使用）。
 
 ## 目录结构
 
 ```
-Maplive_source/
+Maplive_neo/
 ├── asconfig.json          # as3mxml 编译配置（VS Code 插件使用）
 ├── libs/                  # 第三方依赖 SWC
 ├── src/                   # 反编译源码
@@ -51,7 +49,7 @@ mxmlc --debug=true +configname=air \
   --source-path+=src --library-path+=libs \
   --output=bin/Maplive.swf \
   --default-background-color=#504f5e \
-  --default-frame-rate=60 --default-size 500 500 \
+  --default-frame-rate=60 --default-size 1200 800 \
   --swf-version=51 \
   -- src\_Maplive_mx_managers_SystemManager.as
 ```
