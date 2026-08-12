@@ -375,6 +375,21 @@ package views.observe.role
       public function setColor(param1:int) : void
       {
       }
+
+      // 清除所有特效共享缓存（关闭所有角色后调用）
+      public static function clearCache() : void // 
+      { // 
+         for(var k:String in _cache) // 
+         { // 
+            if(_cache[k]) { _cache[k].dispose(); } // 
+            delete _cache[k]; // 
+         } // 
+         for(var p:String in _pending) // 
+         { // 
+            delete _pending[p]; // 
+         } // 
+      } // 
+
    }
 }
 

@@ -76,6 +76,10 @@ package views.observe
       private var _data:XML;
       
       private var _movePoint:Point = new Point();
+
+      public static var roleCount:int = 0; // 打开的角本数（用于关闭所有角色后清除特效缓存）
+
+      private var _isClosed:Boolean = false; // 防止discarded重复执行
       
       public function RoleObserve()
       {
@@ -113,6 +117,7 @@ package views.observe
       
       override public function readFile(param1:File) : void
       {
+         RoleObserve.roleCount++;   // 打开角色计数+1
          var observe:RoleObserve = null;
          var pfile:File = param1;
          observe = this;
@@ -331,9 +336,17 @@ package views.observe
       
       override public function discarded() : void
       {
+         if(this._isClosed) return;   // 防止重复清理
+         this._isClosed = true; // 
          super.discarded();
          this.pool.clear();
          this.roleStage.clear();
+         RoleObserve.roleCount--;   // 关闭角色计数-1
+         if(RoleObserve.roleCount <= 0)   // 所有角色已关闭，清除特效缓存
+         { // 
+            RoleObserve.roleCount = 0; // 
+            EffectStageObject.clearCache(); // 
+         } // 
       }
       
       private function _RoleObserve_Array1_c() : Array

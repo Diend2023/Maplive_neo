@@ -260,7 +260,7 @@ package tmx
          if(_loc2_)
          {
             // _loc2_.targetBitmapData.dispose();
-            _loc2_.dispose(); // 新增：释放源大图 + 所有子图
+            _loc2_.dispose(); // 释放源大图 + 所有子图
             System.disposeXML(_loc2_.targetXml);
             delete this._dict[param1];
          }
