@@ -88,6 +88,8 @@ package
       private var _1554553085viewstack:ViewStack;
       
       private var __moduleFactoryInitialized:Boolean = false;
+
+      private var _lastMemTime:Number = 0; // 内存刷新节流计时
       
       mx_internal var _Maplive_StylesInit_done:Boolean = false;
       
@@ -356,7 +358,18 @@ package
       
       protected function onFrame(param1:Event) : void
       {
-         this.neicun.text = "已使用内存：" + int(System.totalMemory / 1024 / 1024) + "/" + int((System.freeMemory + System.totalMemory) / 1024 / 1024) + "MB";
+         // 每 1 秒才刷新一次内存，避免每帧高开销调用
+         var cur:Number = getTimer(); //
+         if(cur - this._lastMemTime < 1000) // 距上次不足1秒则跳过
+         { //
+            return; //
+         } //
+         this._lastMemTime = cur; // 更新上次刷新时间
+         // this.neicun.text = "已使用内存：" + int(System.totalMemory / 1024 / 1024) + "/" + int((System.freeMemory + System.totalMemory) / 1024 / 1024) + "MB";
+         var avmTotalMem:Number = System.totalMemory; // avm内存(字节)
+         var avmFreeMem:Number = System.freeMemory; // avm空闲内存(字节)
+         var allMem:Number = System.privateMemory; // 进程实际物理内存(字节)
+         this.neicun.text ="AVM内存：" + int(avmTotalMem/1024/1024) + "/" + int((avmFreeMem + avmTotalMem)/1024/1024) + "MB" + "    总内存：" + int(allMem/1024/1024) + "MB"; //
       }
       
       protected function onSoundChange(param1:Event) : void

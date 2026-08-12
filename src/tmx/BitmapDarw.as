@@ -16,6 +16,11 @@ package tmx
       
       public static function scaleXY(param1:BitmapData, param2:Number, param3:Number, param4:Boolean = false) : BitmapData
       {
+         // 缩放为1时直接返回原图，避免无意义的二次复制
+         if(param2 == 1 && param3 == 1)
+         { //
+            return param1; // 
+         } //
          var _loc5_:BitmapData = new BitmapData(param1.width * Math.abs(param2),param1.height * Math.abs(param3),true,0);
          var _loc6_:Matrix = new Matrix();
          _loc6_.scale(param2,param3);

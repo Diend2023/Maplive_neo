@@ -50,6 +50,10 @@ package views.observe.role
       public var selected:Boolean = false;
       
       private var _lastIndex:int = -1;
+
+      private static var _cache:Object = {};   // 特效位图缓存（按名去重，跨角色复用）
+
+      private static var _pending:Object = {};   // 特效名 -> 等待该特效加载完成的EffectStageObject数组
       
       public function EffectStageObject(param1:Object = null)
       {
@@ -60,27 +64,62 @@ package views.observe.role
          {
             this.data.initData(param1);
          }
-         var _loc2_:Loader = new Loader();
-         var _loc3_:File = App.projectFile.resolvePath("effect/" + this._name + ".png");
-         _loc2_.load(new URLRequest(_loc3_.url));
-         _loc2_.contentLoaderInfo.addEventListener(Event.COMPLETE,this.onComplete);
-         _loc2_.contentLoaderInfo.addEventListener(IOErrorEvent.IO_ERROR,this.onError);
-         this._bitmap = new Bitmap();
-         this._select = new Sprite();
-         this._sSprite = new Sprite();
-         this._select.mouseEnabled = false;
-         this.addChild(this._select);
-         this.addChild(this._sSprite);
+         this._bitmap = new Bitmap(); // 从下面移动到这里
+         this._select = new Sprite(); //
+         this._sSprite = new Sprite(); //
+         this._select.mouseEnabled = false; //
+         this.addChild(this._select); //
+         this.addChild(this._sSprite); //
+         if(_cache[this._name] != null)   // 缓存命中：复用位图，只加载XML
+         { //
+            this._bitmapData = _cache[this._name]; //
+            this._loadEffectXml(); //
+         } //
+         else if(_pending[this._name] != null)   // 加载中：挂入等待队列
+         { //
+            _pending[this._name].push(this); //
+            this._bitmapData = null; //
+         } //
+         else   // 缓存未命中：正常加载PNG
+         { //
+            _pending[this._name] = [this]; //
+            var _loc2_:Loader = new Loader();
+            var _loc3_:File = App.projectFile.resolvePath("effect/" + this._name + ".png");
+            _loc2_.load(new URLRequest(_loc3_.url));
+            _loc2_.contentLoaderInfo.addEventListener(Event.COMPLETE,this.onComplete);
+            _loc2_.contentLoaderInfo.addEventListener(IOErrorEvent.IO_ERROR,this.onError);
+         } //
+         // this._bitmap = new Bitmap();
+         // this._select = new Sprite();
+         // this._sSprite = new Sprite();
+         // this._select.mouseEnabled = false;
+         // this.addChild(this._select);
+         // this.addChild(this._sSprite);
          RightUtils.onRightClick(this,"effect");
       }
       
       private function onError(param1:IOErrorEvent) : void
       {
       }
-      
+
       private function onComplete(param1:Event) : void
       {
          this._bitmapData = param1.target.content.bitmapData;
+         _cache[this._name] = this._bitmapData;   // 存入缓存
+         // 通知所有等待该特效的实例复用位图
+         var pendingList:Array = _pending[this._name]; //
+         if(pendingList) //
+         { //
+            for each(var eo:EffectStageObject in pendingList) //
+            { //
+               if(eo != this) //
+               { //
+                  eo._bitmapData = this._bitmapData; // 复用共享位图
+                  eo._loadEffectXml(); // 加载XML并显示
+               } //
+            } //
+         } //
+         delete _pending[this._name]; // 清理等待队列
          var _loc2_:File = new File((param1.target as LoaderInfo).url);
          _loc2_ = _loc2_.parent.resolvePath(_loc2_.name.substr(0,_loc2_.name.length - 4) + ".xml");
          if(_loc2_.exists)
@@ -89,6 +128,19 @@ package views.observe.role
          }
          this.xmlFile = _loc2_;
       }
+      
+      private function _loadEffectXml() : void //
+      { //
+         var f:File = App.projectFile.resolvePath("effect/" + this._name + ".xml"); //
+         if(f.exists) //
+         { //
+            this.onDataComplete(FileUtils.readString(f)); //
+         } //
+         else //
+         { //
+            this.isLoaded = true; //
+         } //
+      } //
       
       public function get bitmapData() : BitmapData
       {
@@ -102,8 +154,14 @@ package views.observe.role
             param1 = param1.substr(param1.indexOf("?>") + 2,param1.length);
          }
          this._xml = new XML(param1);
-         this._bitmap = new Bitmap();
-         this.addChild(this._bitmap);
+         if(!this._bitmap)   // 复用构造时创建的_bitmap，避免被覆盖
+         { //
+            this._bitmap = new Bitmap();
+         } //
+         if(this._bitmap.parent == null)   // 未挂到显示列表才addChild
+         { //
+            this.addChild(this._bitmap);
+         } //
          this.isLoaded = true;
          this.draw(this.frame,0);
       }
@@ -153,6 +211,10 @@ package views.observe.role
             _loc5_ = this._xml.length() - 1;
          }
          var _loc6_:XML = this._xml.SubTexture[_loc5_];
+         if(this._bitmap.bitmapData)   // 释放上一帧位图，避免播放时持续膨胀
+         { //
+            this._bitmap.bitmapData.dispose(); //
+         } //
          var _loc7_:BitmapData = BitmapDarw.xmlForBitmapData(this._bitmapData,_loc6_);
          this._bitmap.bitmapData = _loc7_;
          this.rotation = this.data.rotation;
@@ -298,10 +360,10 @@ package views.observe.role
       
       public function clear() : void
       {
-         if(!this._bitmapData)
-         {
-            this._bitmapData.dispose();
-         }
+         // if(!this._bitmapData)
+         // {
+         //    this._bitmapData.dispose();
+         // }
          this._bitmapData = null;
          if(this._xml)
          {
