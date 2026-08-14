@@ -181,24 +181,30 @@ package views.observe.role
          {
             var _loc1_:Sprite = new Sprite();
             _loc1_.graphics.beginFill(16777215,0);
-            _loc1_.graphics.drawRect(0,0,800 * 2,800 * 2);
+            // _loc1_.graphics.drawRect(0,0,800 * 2,800 * 2);
+            _loc1_.graphics.drawRect(0,0,800 * 4,800 * 4);   // 黑底 3200x3200（原1600，×2）
             _loc1_.graphics.beginFill(3355443);
-            _loc1_.graphics.drawRect(200 * 2,200 * 2,400 * 2,400 * 2);
+            // _loc1_.graphics.drawRect(200 * 2,200 * 2,400 * 2,400 * 2);
+            _loc1_.graphics.drawRect(200 * 4,200 * 4,400 * 4,400 * 4);   // 中间深色区 放大一倍
             _loc1_.graphics.endFill();
             roleDraw.addChild(_loc1_);
             _bg = _loc1_; // 记录背景层引用，供 setZoom 反向补偿黑块
             node = new Sprite();
             roleDraw.addChild(node);
-            node.x = 400 * 2;
-            node.y = 400 * 2;
+            // node.x = 400 * 2;
+            // node.y = 400 * 2;
+            node.x = 400 * 4; // 中心 1600（原800，×2）
+            node.y = 400 * 4; //
             hitNode = new Sprite();
             roleDraw.addChild(hitNode);
             hitNode.x = node.x;
             hitNode.y = node.y;
             _hitSprite = new HitDarwSprite();
             hitNode.addChild(_hitSprite);
-            scroller.viewport.horizontalScrollPosition = 1600 / 2 - 200;
-            scroller.viewport.verticalScrollPosition = 1600 / 2 - 200;
+            // scroller.viewport.horizontalScrollPosition = 1600 / 2 - 200;
+            // scroller.viewport.verticalScrollPosition = 1600 / 2 - 200;
+            scroller.viewport.horizontalScrollPosition = 3200 / 2 - 200; // 1600/2→3200/2，保持中心视角
+            scroller.viewport.verticalScrollPosition = 3200 / 2 - 200; //
             roleDraw.addEventListener(MouseEvent.MOUSE_WHEEL,onWheel); //
             roleDraw.addEventListener(MouseEvent.MIDDLE_MOUSE_DOWN,onMiddleDown); //
             if(_zoomLabel) //
@@ -228,15 +234,17 @@ package views.observe.role
          // 记录缩放前角色在视口中的相对位置（角色中心屏幕位置 = node.x × oldZoom）
          var relX:Number = (node.x * oldZoom) - vp.horizontalScrollPosition; //
          var relY:Number = (node.y * oldZoom) - vp.verticalScrollPosition; //
+         relX = Math.max(0, Math.min(vp.width, relX)); // 角色视口位置限制在视口内
+         relY = Math.max(0, Math.min(vp.height, relY)); //
          var comp:Number; //
          var contentCenter:Number; //
-         var z:Number = Math.max(0.2,Math.min(2.0,param1)); //
+         var z:Number = Math.max(0.1,Math.min(3.0,param1)); //
          if(z == this._zoom) //
          { //
             return; //
          } //
          this._zoom = z; //
-         var dispW:Number = Math.max(1600 * z, 800 * Math.max(z, 1)); //
+         var dispW:Number = 3200 * Math.max(z, 1); // 滚动范围覆盖完整画布(白块3200)+黑块
          roleDraw.scaleX = roleDraw.scaleY = z; //
          roleDraw.width = dispW / z; //
          roleDraw.height = dispW / z; //
@@ -249,13 +257,13 @@ package views.observe.role
          { //
             comp = Math.max(1, 1 / z); //
             this._bg.scaleX = this._bg.scaleY = comp; //
-            this._bg.x = contentCenter - 800 * comp; //
-            this._bg.y = contentCenter - 800 * comp; //
+            this._bg.x = contentCenter - 1600 * comp; //
+            this._bg.y = contentCenter - 1600 * comp; //
          } //
          callLater(function():void //
          { //
-            vp.horizontalScrollPosition = node.x * z - relX; // 角色保持原视口相对位置
-            vp.verticalScrollPosition = node.y * z - relY; //
+            vp.horizontalScrollPosition = Math.max(0, Math.min(vp.contentWidth - vp.width, node.x * z - relX)); //
+            vp.verticalScrollPosition = Math.max(0, Math.min(vp.contentHeight - vp.height, node.y * z - relY)); //
             roleDraw.x = (vp.width > dispW) ? (vp.width - dispW) / 2 : 0; //
             roleDraw.y = (vp.height > dispW) ? (vp.height - dispW) / 2 : 0; //
          }); //
@@ -275,7 +283,7 @@ package views.observe.role
          { //
             param1.stopImmediatePropagation(); //
             param1.preventDefault(); //
-            var nv:Number = Math.max(0.2,Math.min(2.0,this._zoom + param1.delta * 0.03)); //
+            var nv:Number = Math.max(0.1,Math.min(3.0,this._zoom + param1.delta * 0.03)); //
             this.setZoom(nv); // 直接缩放（与 TMX 一致，不依赖 change 事件）
          } //
       } //
@@ -645,8 +653,10 @@ package views.observe.role
       private function _RoleStage_UIComponent1_i() : UIComponent
       {
          var _loc1_:UIComponent = new UIComponent();
-         _loc1_.width = 1600;
-         _loc1_.height = 1600;
+         // _loc1_.width = 1600;
+         // _loc1_.height = 1600;
+         _loc1_.width = 3200; //
+         _loc1_.height = 3200; //
          _loc1_.addEventListener("mouseDown",this.__roleDraw_mouseDown);
          _loc1_.addEventListener("rightMouseDown",this.__roleDraw_rightMouseDown);
          _loc1_.id = "roleDraw";
