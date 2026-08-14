@@ -47,6 +47,8 @@ package views.observe.role
    import views.observe.role.frame.Frame;
    import views.observe.role.frame.FrameGroup;
    import views.observe.text.HitDarwSprite;
+   import spark.components.Label; //
+   import spark.components.HSlider; //
    
    use namespace mx_internal;
    
@@ -98,6 +100,14 @@ package views.observe.role
       mx_internal var _bindingsByDestination:Object;
       
       mx_internal var _bindingsBeginWithWord:Object;
+
+      private var _zoom:Number = 1; // 画布背景缩放比例 0.2~2.0
+
+      private var _bg:Sprite; // 背景层引用（透明底+黑色块），缩放对象
+
+      private var _zoomSlider:HSlider; // 缩放滑块
+
+      private var _zoomLabel:Label; // 缩放百分比显示
       
       public function RoleStage()
       {
@@ -176,6 +186,7 @@ package views.observe.role
             _loc1_.graphics.drawRect(200 * 2,200 * 2,400 * 2,400 * 2);
             _loc1_.graphics.endFill();
             roleDraw.addChild(_loc1_);
+            _bg = _loc1_; // 记录背景层引用，供 setZoom 反向补偿黑块
             node = new Sprite();
             roleDraw.addChild(node);
             node.x = 400 * 2;
@@ -188,6 +199,12 @@ package views.observe.role
             hitNode.addChild(_hitSprite);
             scroller.viewport.horizontalScrollPosition = 1600 / 2 - 200;
             scroller.viewport.verticalScrollPosition = 1600 / 2 - 200;
+            roleDraw.addEventListener(MouseEvent.MOUSE_WHEEL,onWheel); //
+            roleDraw.addEventListener(MouseEvent.MIDDLE_MOUSE_DOWN,onMiddleDown); //
+            if(_zoomLabel) //
+            { //
+               _zoomLabel.text = "100%"; //
+            } //
          });
          this.addEventListener(RightClickEvent.CLICK,this.onRightClick);
       }
@@ -202,6 +219,77 @@ package views.observe.role
                (param1.target as EffectStageObject).removeFrame();
          }
       }
+
+      // 核心缩放：整体缩放 roleDraw，滚动比例保持中心，与 TMX 一致
+      private function setZoom(param1:Number) : void //
+      { //
+         var vp:Object = this.scroller.viewport; //
+         var oldZoom:Number = this._zoom; //
+         // 记录缩放前角色在视口中的相对位置（角色中心屏幕位置 = node.x × oldZoom）
+         var relX:Number = (node.x * oldZoom) - vp.horizontalScrollPosition; //
+         var relY:Number = (node.y * oldZoom) - vp.verticalScrollPosition; //
+         var comp:Number; //
+         var contentCenter:Number; //
+         var z:Number = Math.max(0.2,Math.min(2.0,param1)); //
+         if(z == this._zoom) //
+         { //
+            return; //
+         } //
+         this._zoom = z; //
+         var dispW:Number = Math.max(1600 * z, 800 * Math.max(z, 1)); //
+         roleDraw.scaleX = roleDraw.scaleY = z; //
+         roleDraw.width = dispW / z; //
+         roleDraw.height = dispW / z; //
+         contentCenter = dispW / (2 * z); //
+         node.x = contentCenter; //
+         node.y = contentCenter; //
+         hitNode.x = node.x; //
+         hitNode.y = node.y; //
+         if(this._bg) //
+         { //
+            comp = Math.max(1, 1 / z); //
+            this._bg.scaleX = this._bg.scaleY = comp; //
+            this._bg.x = contentCenter - 800 * comp; //
+            this._bg.y = contentCenter - 800 * comp; //
+         } //
+         callLater(function():void //
+         { //
+            vp.horizontalScrollPosition = node.x * z - relX; // 角色保持原视口相对位置
+            vp.verticalScrollPosition = node.y * z - relY; //
+            roleDraw.x = (vp.width > dispW) ? (vp.width - dispW) / 2 : 0; //
+            roleDraw.y = (vp.height > dispW) ? (vp.height - dispW) / 2 : 0; //
+         }); //
+         if(this._zoomLabel) //
+         { //
+            this._zoomLabel.text = Math.round(this._zoom * 100) + "%"; //
+         } //
+         if(this._zoomSlider) //
+         { //
+            this._zoomSlider.value = this._zoom; //
+         } //
+      } //
+      
+      protected function onWheel(param1:MouseEvent) : void //
+      { //
+         if(param1.ctrlKey) //
+         { //
+            param1.stopImmediatePropagation(); //
+            param1.preventDefault(); //
+            var nv:Number = Math.max(0.2,Math.min(2.0,this._zoom + param1.delta * 0.03)); //
+            this.setZoom(nv); // 直接缩放（与 TMX 一致，不依赖 change 事件）
+         } //
+      } //
+
+      // Ctrl+点击滚轮（中键）：复原缩放到 100%
+      protected function onMiddleDown(param1:MouseEvent) : void //
+      { //
+         if(param1.ctrlKey) //
+         { //
+            param1.stopImmediatePropagation(); //
+            param1.preventDefault(); //
+            this.setZoom(1); // 复原到 100%
+         } //
+      } //
       
       public function set pool(param1:Pool) : void
       {
@@ -320,6 +408,7 @@ package views.observe.role
          this.node.addChild(_loc3_);
          this._effect.push(_loc3_);
          this._currentFrame.addEffect(_loc3_);
+         _loc3_.draw(this._currentFrame, 0);   // 新增：初始化atFrame并立即绘制（缓存命中时同步生效）
          this.onChange();
       }
       
@@ -355,8 +444,11 @@ package views.observe.role
       {
          var _loc1_:HGroup = new HGroup();
          _loc1_.left = 5;
+         _loc1_.right = 5; //
          _loc1_.top = 3;
-         _loc1_.mxmlContent = [this._RoleStage_TabBar1_i(),this._RoleStage_ViewStack1_i(),this._RoleStage_Button1_c()];
+         _loc1_.verticalAlign = "middle"; //
+         // _loc1_.mxmlContent = [this._RoleStage_TabBar1_i(),this._RoleStage_ViewStack1_i(),this._RoleStage_Button1_c()];
+         _loc1_.mxmlContent = [this._RoleStage_TabBar1_i(),this._RoleStage_ViewStack1_i(),this._RoleStage_Button1_c(),this._RoleStage_Group3_c(),this._RoleStage_Group4_c()]; //
          if(!_loc1_.document)
          {
             _loc1_.document = this;
@@ -437,7 +529,85 @@ package views.observe.role
          }
          return _loc1_;
       }
+
+      // 弹性空白，把缩放控件推到右侧尽头
+      private function _RoleStage_Group3_c() : Group //
+      { //
+         var _loc1_:Group = new Group(); //
+         _loc1_.percentWidth = 100; //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         return _loc1_; //
+      } //
       
+      // 缩放控件组：滑块 + 百分比
+      private function _RoleStage_Group4_c() : HGroup //
+      { //
+         var _loc1_:HGroup = new HGroup(); //
+         _loc1_.verticalAlign = "middle"; //
+         _loc1_.gap = 4; //
+         _loc1_.mxmlContent = [this._RoleStage_zoomText_c(),this._RoleStage_zoomSlider_c(),this._RoleStage_zoomLabel_c()]; //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         return _loc1_; //
+      } //
+
+      // 静态"缩放："标签
+      private function _RoleStage_zoomText_c() : Label //
+      { //
+         var _loc1_:Label = new Label(); //
+         _loc1_.text = "缩放："; //
+         _loc1_.setStyle("color",16777215); //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         return _loc1_; //
+      } //
+      
+      private function _RoleStage_zoomSlider_c() : HSlider //
+      { //
+         var _loc1_:HSlider = new HSlider(); //
+         _loc1_.maximum = 2; //
+         _loc1_.minimum = 0.2; //
+         _loc1_.stepSize = 0.01; //
+         _loc1_.value = 1; //
+         _loc1_.focusEnabled = false; //
+         _loc1_.verticalCenter = 0; //
+         _loc1_.addEventListener("change",this.__zoomSlider_change); //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         this._zoomSlider = _loc1_; //
+         return _loc1_; //
+      } //
+      
+      public function __zoomSlider_change(param1:Event) : void //
+      { //
+         this.setZoom(this._zoomSlider.value); //
+      } //
+      
+      private function _RoleStage_zoomLabel_c() : Label //
+      { //
+         var _loc1_:Label = new Label(); //
+         _loc1_.text = "100%"; //
+         _loc1_.width = 48; //
+         _loc1_.setStyle("textAlign","center"); //
+         _loc1_.setStyle("verticalAlign","middle"); //
+         _loc1_.setStyle("color",16777215); //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         this._zoomLabel = _loc1_; //
+         return _loc1_; //
+      } //
+
       public function ___RoleStage_Button1_click(param1:MouseEvent) : void
       {
          this.onCreateEffect(param1);
