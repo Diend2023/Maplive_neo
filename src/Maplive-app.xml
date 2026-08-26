@@ -39,6 +39,8 @@
 	<!-- Copyright information. Optional -->
 	<!-- <copyright></copyright> -->
 
+	<architecture>64</architecture>
+
 	<!-- Publisher ID. Used if you're updating an application created prior to 1.5.3 -->
 	<!-- <publisherID></publisherID> -->
 

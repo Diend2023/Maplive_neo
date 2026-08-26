@@ -7,7 +7,7 @@
 			"name": "Launch AIR Application",
 			"program": "${workspaceFolder}/bin/Maplive-app.xml",
 			"profile": "desktop",
-			"runtimeExecutable": "E:/AIRSDK/AIRSDK_51.3.3/bin/adl.exe"
+			"runtimeExecutable": "E:/AIRSDK/AIRSDK_51.3.4/bin/adl64.exe"
 		}
 	]
 }
