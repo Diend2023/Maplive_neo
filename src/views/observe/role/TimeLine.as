@@ -65,6 +65,10 @@ package views.observe.role
       
       private static var _watcherSetupUtil:IWatcherSetupUtil2;
       
+      public static var copyFrameXML:XML; // 帧剪贴板（复制的SubTexture整行数据）
+
+      public static var copyRoleUrl:String; // 剪贴板来源角色文件url（用于禁止跨角色粘贴）
+      
       private var _1851397701actionDrop:DropDownList;
       
       private var _1161803523actions:ArrayCollection;
@@ -213,6 +217,35 @@ package views.observe.role
          var e:RightClickEvent = param1;
          switch(e.clickTag)
          {
+            case "复制帧": //
+               { //
+                  var _loc8_:Array = []; //
+                  for(var _loc11_:Object in this.currentFrame.effectObjects) //
+                  { //
+                     _loc8_.push(this.currentFrame.effectObjects[_loc11_].data.getSaveData()); // 特效数据仅在保存时回写XML，复制前需先序列化到XML（同Frame.updateEffectConfig逻辑），否则粘贴后特效丢失
+                  } //
+                  this.currentFrame.data.@effects = JSON.stringify(_loc8_); //
+                  TimeLine.copyFrameXML = new XML(this.currentFrame.data.toXMLString()); // 深拷贝帧XML，避免引用污染
+                  TimeLine.copyRoleUrl = this.observe ? this.observe.file.url : ""; // 记录来源角色
+               } //
+               break; //
+            case "粘贴帧": //
+               { //
+                  if(this.canPasteFrame() && this.currentFrameGroup) //
+                  { //
+                     var _loc9_:XML = new XML(TimeLine.copyFrameXML.toXMLString()); // 粘贴时再深拷贝一次，保证剪贴板可重复粘贴
+                     var _loc10_:int = this.frameIndex < 0 ? 0 : this.frameIndex; // 在选中帧左侧插入
+                     this.currentFrameGroup.add(new Frame(_loc9_),_loc10_); //
+                     this.setFrameGroup(this.currentFrameGroup); //
+                     if(this.observe && this.observe.roleStage) //
+                     { //
+                        this.observe.roleStage.setGroup(this.currentFrameGroup); // 重建舞台特效显示列表，否则新帧的effectObjects未加入node不显示
+                     } //
+                     this.select(_loc10_ + 1); // 选中新插入的帧
+                     this.onChange(); //
+                  } //
+               } //
+               break; //
             case "删除帧":
                this.removeAt(this.frameIndex);
                this.onChange();
@@ -255,12 +288,22 @@ package views.observe.role
          }
       }
       
+      public function canPasteFrame() : Boolean //
+      { //
+         var _loc1_:String = this.observe ? this.observe.file.url : ""; //
+         return TimeLine.copyFrameXML != null && TimeLine.copyRoleUrl == _loc1_; // 未复制或跨角色时不可粘贴
+      } //
+      
       public function removeAt(param1:int) : void
       {
          if(this.currentFrameGroup)
          {
             this.currentFrameGroup.remove(param1);
             this.setFrameGroup(this.currentFrameGroup);
+            if(this.observe && this.observe.roleStage) //
+            { //
+               this.observe.roleStage.setGroup(this.currentFrameGroup); // 删除帧后重建舞台特效显示列表，移除被删帧残留在node/_effect中的特效对象，否则其特效会在后续帧持续显示
+            } //
             this.onChange();
          }
       }
@@ -272,6 +315,7 @@ package views.observe.role
          {
             this.select(_loc2_);
             _loc2_.updateMenu();
+            (_loc2_.contextMenu.items[1] as NativeMenuItem).enabled = this.canPasteFrame(); // 粘贴帧：未复制或跨角色时禁用（复制帧items[0]默认可用）
             this.onMouseSelect(_loc2_.frame);
          }
       }

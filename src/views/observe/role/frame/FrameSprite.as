@@ -64,11 +64,16 @@ package views.observe.role.frame
       
       public function updateMenu() : void
       {
-         (this.contextMenu.items[1] as NativeMenuItem).enabled = this.isEffect();
-         (this.contextMenu.items[2] as NativeMenuItem).enabled = this.isStop();
-         (this.contextMenu.items[3] as NativeMenuItem).enabled = this.isSound();
-         (this.contextMenu.items[4] as NativeMenuItem).enabled = this.isHit();
-         (this.contextMenu.items[5] as NativeMenuItem).enabled = this.isMove();
+         // (this.contextMenu.items[1] as NativeMenuItem).enabled = this.isEffect();
+         // (this.contextMenu.items[2] as NativeMenuItem).enabled = this.isStop();
+         // (this.contextMenu.items[3] as NativeMenuItem).enabled = this.isSound();
+         // (this.contextMenu.items[4] as NativeMenuItem).enabled = this.isHit();
+         // (this.contextMenu.items[5] as NativeMenuItem).enabled = this.isMove();
+         (this.contextMenu.items[3] as NativeMenuItem).enabled = this.isEffect(); // 原items[1]，菜单头部新增复制/粘贴两项后索引后移2
+         (this.contextMenu.items[4] as NativeMenuItem).enabled = this.isStop(); //
+         (this.contextMenu.items[5] as NativeMenuItem).enabled = this.isSound(); //
+         (this.contextMenu.items[6] as NativeMenuItem).enabled = this.isHit(); //
+         (this.contextMenu.items[7] as NativeMenuItem).enabled = this.isMove(); //
       }
       
       public function select(param1:Boolean) : void
