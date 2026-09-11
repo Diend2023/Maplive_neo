@@ -229,19 +229,27 @@ package views.observe.role
                   TimeLine.copyRoleUrl = this.observe ? this.observe.file.url : ""; // 记录来源角色
                } //
                break; //
-            case "粘贴帧": //
+            case "粘贴帧至左侧": //
+            case "粘贴帧至右侧": //
                { //
                   if(this.canPasteFrame() && this.currentFrameGroup) //
                   { //
                      var _loc9_:XML = new XML(TimeLine.copyFrameXML.toXMLString()); // 粘贴时再深拷贝一次，保证剪贴板可重复粘贴
-                     var _loc10_:int = this.frameIndex < 0 ? 0 : this.frameIndex; // 在选中帧左侧插入
-                     this.currentFrameGroup.add(new Frame(_loc9_),_loc10_); //
+                     var _loc10_:int = this.frameIndex < 0 ? 0 : this.frameIndex; // 右键选中的锚点帧索引
+                     if(e.clickTag == "粘贴帧至左侧") //
+                     { //
+                        this.currentFrameGroup.add(new Frame(_loc9_),_loc10_); // 插入到锚点帧左侧
+                     } //
+                     else //
+                     { //
+                        this.currentFrameGroup.add(new Frame(_loc9_),_loc10_ + 1); // 插入到锚点帧右侧
+                     } //
                      this.setFrameGroup(this.currentFrameGroup); //
                      if(this.observe && this.observe.roleStage) //
                      { //
                         this.observe.roleStage.setGroup(this.currentFrameGroup); // 重建舞台特效显示列表，否则新帧的effectObjects未加入node不显示
                      } //
-                     this.select(_loc10_ + 1); // 选中新插入的帧
+                     this.select(e.clickTag == "粘贴帧至左侧" ? _loc10_ + 1 : _loc10_); // 粘贴后仍选中之前右键的锚点帧：左插后其索引+1，右插后索引不变
                      this.onChange(); //
                   } //
                } //
@@ -315,7 +323,9 @@ package views.observe.role
          {
             this.select(_loc2_);
             _loc2_.updateMenu();
-            (_loc2_.contextMenu.items[1] as NativeMenuItem).enabled = this.canPasteFrame(); // 粘贴帧：未复制或跨角色时禁用（复制帧items[0]默认可用）
+            var _loc3_:Boolean = this.canPasteFrame(); //
+            (_loc2_.contextMenu.items[1] as NativeMenuItem).enabled = _loc3_; // 粘贴至左侧：未复制或跨角色时禁用
+            (_loc2_.contextMenu.items[2] as NativeMenuItem).enabled = _loc3_; // 粘贴至右侧：未复制或跨角色时禁用
             this.onMouseSelect(_loc2_.frame);
          }
       }

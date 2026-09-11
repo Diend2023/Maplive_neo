@@ -49,6 +49,8 @@ package views.observe.role
    import views.observe.text.HitDarwSprite;
    import spark.components.Label; //
    import spark.components.HSlider; //
+   import events.OpenEvent; //
+   import mx.controls.Alert; //
    
    use namespace mx_internal;
    
@@ -223,6 +225,24 @@ package views.observe.role
                this.node.removeChild(param1.target as DisplayObject);
                this._effect.removeAt(this._effect.indexOf(param1.target as EffectStageObject));
                (param1.target as EffectStageObject).removeFrame();
+               break; //
+            case "编辑碰撞块": //
+               { //
+                  var effectObj:EffectStageObject = param1.target as EffectStageObject; //
+                  if(effectObj) //
+                  { //
+                     var effectXml:File = App.projectFile.resolvePath("effect/" + effectObj.getName() + ".xml"); // 路径约定同EffectStageObject._loadEffectXml
+                     if(effectXml.exists) //
+                     { //
+                        this.dispatchEvent(new OpenEvent(OpenEvent.OPEN,effectXml)); // 冒泡到Maplive.onOpen，以xml类型在应用内TextObserve（特效元素编辑器）中打开，可绘制hitPoint碰撞块
+                     } //
+                     else //
+                     { //
+                        Alert.show("未找到特效XML文件：\n" + effectXml.nativePath,"编辑碰撞块"); //
+                     } //
+                  } //
+               } //
+               break; //
          }
       }
 
