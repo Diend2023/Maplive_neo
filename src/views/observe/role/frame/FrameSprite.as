@@ -10,6 +10,8 @@ package views.observe.role.frame
       public var id:int = 0;
       
       public var frame:Frame;
+
+      public var selected:Boolean = false; // 是否处于选中状态（供TimeLine统计多选）
       
       public function FrameSprite()
       {
@@ -69,15 +71,16 @@ package views.observe.role.frame
          // (this.contextMenu.items[3] as NativeMenuItem).enabled = this.isSound();
          // (this.contextMenu.items[4] as NativeMenuItem).enabled = this.isHit();
          // (this.contextMenu.items[5] as NativeMenuItem).enabled = this.isMove();
-         (this.contextMenu.items[4] as NativeMenuItem).enabled = this.isEffect(); // 原items[1]，菜单头部新增复制/粘贴两项后索引后移2
-         (this.contextMenu.items[5] as NativeMenuItem).enabled = this.isStop(); //
-         (this.contextMenu.items[6] as NativeMenuItem).enabled = this.isSound(); //
-         (this.contextMenu.items[7] as NativeMenuItem).enabled = this.isHit(); //
-         (this.contextMenu.items[8] as NativeMenuItem).enabled = this.isMove(); //
+         (this.contextMenu.items[5] as NativeMenuItem).enabled = this.isEffect(); // 原items[1]，菜单头部新增复制/粘贴两项后索引后移2
+         (this.contextMenu.items[6] as NativeMenuItem).enabled = this.isStop(); //
+         (this.contextMenu.items[7] as NativeMenuItem).enabled = this.isSound(); //
+         (this.contextMenu.items[8] as NativeMenuItem).enabled = this.isHit(); //
+         (this.contextMenu.items[9] as NativeMenuItem).enabled = this.isMove(); //
       }
       
       public function select(param1:Boolean) : void
       {
+         this.selected = param1; // 记录选中状态，多选高亮与集合统计依赖此标志
          if(param1)
          {
             this.draw();

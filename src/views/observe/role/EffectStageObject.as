@@ -54,6 +54,8 @@ package views.observe.role
       private static var _cache:Object = {};   // 特效位图缓存（按名去重，跨角色复用）
 
       private static var _pending:Object = {};   // 特效名 -> 等待该特效加载完成的EffectStageObject数组
+
+      public static var copyEffectData:String; // 特效实例剪贴板：保存EffectData.getSaveData()的JSON
       
       public function EffectStageObject(param1:Object = null)
       {

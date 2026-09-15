@@ -65,7 +65,7 @@ package views.observe.role
       
       private static var _watcherSetupUtil:IWatcherSetupUtil2;
       
-      public static var copyFrameXML:XML; // 帧剪贴板（复制的SubTexture整行数据）
+      public static var copyFrameXMLs:Vector.<XML>; // 多帧剪贴板（按复制顺序存放整行SubTexture数据）
 
       public static var copyRoleUrl:String; // 剪贴板来源角色文件url（用于禁止跨角色粘贴）
       
@@ -117,6 +117,10 @@ package views.observe.role
       private var frameSprites:Vector.<FrameSprite>;
       
       private var frameIndex:int = -1;
+
+      private var _anchorIndex:int = -1; // Shift范围选择锚点（最后点击的帧）
+
+      private var _multiSelect:Boolean = false; // 是否多选模式
       
       private var _fps:FPSUtil;
       
@@ -219,13 +223,29 @@ package views.observe.role
          {
             case "复制帧": //
                { //
-                  var _loc8_:Array = []; //
-                  for(var _loc11_:Object in this.currentFrame.effectObjects) //
+                  var _loc8_:Array = this.getSelectedIndices(); // 多选时复制全部选中帧
+                  if(_loc8_.length == 0) //
                   { //
-                     _loc8_.push(this.currentFrame.effectObjects[_loc11_].data.getSaveData()); // 特效数据仅在保存时回写XML，复制前需先序列化到XML（同Frame.updateEffectConfig逻辑），否则粘贴后特效丢失
+                     _loc8_ = [this.frameIndex < 0 ? 0 : this.frameIndex]; // 兜底：无选中标记时复制当前帧
                   } //
-                  this.currentFrame.data.@effects = JSON.stringify(_loc8_); //
-                  TimeLine.copyFrameXML = new XML(this.currentFrame.data.toXMLString()); // 深拷贝帧XML，避免引用污染
+                  var _loc11_:Vector.<XML> = new Vector.<XML>(); //
+                  var _loc12_:int = 0; //
+                  while(_loc12_ < _loc8_.length) //
+                  { //
+                     if(_loc8_[_loc12_] < this.currentFrameGroup.frames.length) //
+                     { //
+                        var _loc13_:Frame = this.currentFrameGroup.frames[_loc8_[_loc12_]]; //
+                        var _loc14_:Array = []; //
+                        for(var _loc15_:Object in _loc13_.effectObjects) //
+                        { //
+                           _loc14_.push(_loc13_.effectObjects[_loc15_].data.getSaveData()); // 特效数据仅在保存时回写XML，复制前先序列化（同Frame.updateEffectConfig逻辑）
+                        } //
+                        _loc13_.data.@effects = JSON.stringify(_loc14_); //
+                        _loc11_.push(new XML(_loc13_.data.toXMLString())); // 按选中顺序逐帧深拷贝
+                     } //
+                     _loc12_++; //
+                  } //
+                  TimeLine.copyFrameXMLs = _loc11_; //
                   TimeLine.copyRoleUrl = this.observe ? this.observe.file.url : ""; // 记录来源角色
                } //
                break; //
@@ -234,22 +254,20 @@ package views.observe.role
                { //
                   if(this.canPasteFrame() && this.currentFrameGroup) //
                   { //
-                     var _loc9_:XML = new XML(TimeLine.copyFrameXML.toXMLString()); // 粘贴时再深拷贝一次，保证剪贴板可重复粘贴
-                     var _loc10_:int = this.frameIndex < 0 ? 0 : this.frameIndex; // 右键选中的锚点帧索引
-                     if(e.clickTag == "粘贴帧至左侧") //
+                     var _loc9_:int = this.frameIndex < 0 ? 0 : this.frameIndex; // 右键锚点帧索引
+                     var _loc10_:int = e.clickTag == "粘贴帧至左侧" ? _loc9_ : (_loc9_ + 1); // 整块插入基准位置
+                     var _loc16_:int = 0; //
+                     while(_loc16_ < TimeLine.copyFrameXMLs.length) //
                      { //
-                        this.currentFrameGroup.add(new Frame(_loc9_),_loc10_); // 插入到锚点帧左侧
-                     } //
-                     else //
-                     { //
-                        this.currentFrameGroup.add(new Frame(_loc9_),_loc10_ + 1); // 插入到锚点帧右侧
+                        this.currentFrameGroup.add(new Frame(new XML(TimeLine.copyFrameXMLs[_loc16_].toXMLString())),_loc10_ + _loc16_); // 按复制顺序逐帧插入，块内相对顺序不变
+                        _loc16_++; //
                      } //
                      this.setFrameGroup(this.currentFrameGroup); //
                      if(this.observe && this.observe.roleStage) //
                      { //
                         this.observe.roleStage.setGroup(this.currentFrameGroup); // 重建舞台特效显示列表，否则新帧的effectObjects未加入node不显示
                      } //
-                     this.select(e.clickTag == "粘贴帧至左侧" ? _loc10_ + 1 : _loc10_); // 粘贴后仍选中之前右键的锚点帧：左插后其索引+1，右插后索引不变
+                     this.select(e.clickTag == "粘贴帧至左侧" ? _loc9_ + TimeLine.copyFrameXMLs.length : _loc9_); // 粘贴后仍选中锚点帧：左插后索引+N，右插后不变
                      this.onChange(); //
                   } //
                } //
@@ -275,6 +293,14 @@ package views.observe.role
                this.currentFrame.isStop = false;
                this.onChange();
                break;
+            case "粘贴元素": //
+               { //
+                  if(EffectStageObject.copyEffectData != null && this.currentFrame && this.observe && this.observe.roleStage) //
+                  { //
+                     this.observe.roleStage.createToFrameEffectData(JSON.parse(EffectStageObject.copyEffectData),this.currentFrame); // 追加至当前帧（内部挂显示列表、绘制、onChange）
+                  } //
+               } //
+               break; //
             case "清除元素":
                this.currentFrame.clearAllEffect();
                this.onChange();
@@ -299,7 +325,7 @@ package views.observe.role
       public function canPasteFrame() : Boolean //
       { //
          var _loc1_:String = this.observe ? this.observe.file.url : ""; //
-         return TimeLine.copyFrameXML != null && TimeLine.copyRoleUrl == _loc1_; // 未复制或跨角色时不可粘贴
+         return TimeLine.copyFrameXMLs != null && TimeLine.copyFrameXMLs.length > 0 && TimeLine.copyRoleUrl == _loc1_; // 未复制或跨角色时不可粘贴
       } //
       
       public function removeAt(param1:int) : void
@@ -321,15 +347,114 @@ package views.observe.role
          var _loc2_:FrameSprite = param1.target as FrameSprite;
          if(_loc2_)
          {
-            this.select(_loc2_);
+            if(param1.ctrlKey) //
+            { //
+               this.toggleSelect(_loc2_); // Ctrl：逐个切换选中
+            } //
+            else if(param1.shiftKey) //
+            { //
+               this.selectRangeTo(_loc2_); // Shift：锚点到点击帧连续选中
+            } //
+            else if(_loc2_.selected && param1.type == MouseEvent.RIGHT_MOUSE_DOWN) //
+            { //
+               this.applyCurrent(_loc2_); // 右键点击已选中帧：保留多选，仅切换当前帧
+            } //
+            else //
+            { //
+               this.select(_loc2_);
+            } //
             _loc2_.updateMenu();
-            var _loc3_:Boolean = this.canPasteFrame(); //
-            (_loc2_.contextMenu.items[1] as NativeMenuItem).enabled = _loc3_; // 粘贴至左侧：未复制或跨角色时禁用
-            (_loc2_.contextMenu.items[2] as NativeMenuItem).enabled = _loc3_; // 粘贴至右侧：未复制或跨角色时禁用
+            this.updateMenuState(_loc2_); // 按多选状态统一设置菜单项可用性
             this.onMouseSelect(_loc2_.frame);
          }
       }
+
+      private function updateMenuState(param1:FrameSprite) : void //
+      { //
+         var _loc2_:Boolean = this._multiSelect && this.getSelectedIndices().length > 1; // 多选模式：仅“复制帧”可用
+         (param1.contextMenu.items[0] as NativeMenuItem).enabled = true; // 复制帧
+         (param1.contextMenu.items[1] as NativeMenuItem).enabled = !_loc2_ && this.canPasteFrame(); // 粘贴帧至左侧
+         (param1.contextMenu.items[2] as NativeMenuItem).enabled = !_loc2_ && this.canPasteFrame(); // 粘贴帧至右侧
+         (param1.contextMenu.items[3] as NativeMenuItem).enabled = !_loc2_; // 删除帧
+         (param1.contextMenu.items[4] as NativeMenuItem).enabled = !_loc2_ && EffectStageObject.copyEffectData != null; // 粘贴元素
+         (param1.contextMenu.items[5] as NativeMenuItem).enabled = !_loc2_ && param1.isEffect(); // 清除元素
+         (param1.contextMenu.items[6] as NativeMenuItem).enabled = !_loc2_ && param1.isStop(); // 清除停顿
+         (param1.contextMenu.items[7] as NativeMenuItem).enabled = !_loc2_ && param1.isSound(); // 清除音效
+         (param1.contextMenu.items[8] as NativeMenuItem).enabled = !_loc2_ && param1.isHit(); // 清除碰撞
+         (param1.contextMenu.items[9] as NativeMenuItem).enabled = !_loc2_ && param1.isMove(); // 清除位移
+         (param1.contextMenu.items[10] as NativeMenuItem).enabled = !_loc2_; // 删除所有帧
+      } //
       
+      public function getSelectedIndices() : Array //
+      { //
+         var _loc1_:Array = []; //
+         if(!this.currentFrameGroup) //
+         { //
+            return _loc1_; //
+         } //
+         var _loc2_:int = 0; //
+         while(_loc2_ < this.frameSprites.length && _loc2_ < this.currentFrameGroup.frames.length) //
+         { //
+            if(this.frameSprites[_loc2_].selected) //
+            { //
+               _loc1_.push(_loc2_); //
+            } //
+            _loc2_++; //
+         } //
+         return _loc1_; //
+      } //
+      
+      private function applyCurrent(param1:FrameSprite) : void //
+      { //
+         this.frameIndex = this.frameSprites.indexOf(param1); //
+         this.currentFrame = param1.frame; //
+         this.updateFrame(); //
+         if(this.onSelect != null) //
+         { //
+            this.onSelect(this.currentFrame); //
+         } //
+         this.cframe.text = "当前帧：" + this.frameIndex; //
+      } //
+      
+      private function toggleSelect(param1:FrameSprite) : void //
+      { //
+         param1.select(!param1.selected); //
+         if(this.getSelectedIndices().length == 0) //
+         { //
+            param1.select(true); // 至少保留一帧选中
+         } //
+         this._multiSelect = true; //
+         this._anchorIndex = this.frameSprites.indexOf(param1); //
+         this.applyCurrent(param1); //
+      } //
+      
+      private function selectRangeTo(param1:FrameSprite) : void //
+      { //
+         if(!this.currentFrameGroup) //
+         { //
+            return; //
+         } //
+         var _loc2_:int = this._anchorIndex < 0 ? this.frameIndex : this._anchorIndex; //
+         var _loc3_:int = this.frameSprites.indexOf(param1); //
+         var _loc4_:int = this.currentFrameGroup.frames.length - 1; // 当前动作组有效帧索引上界
+         if(_loc2_ < 0) //
+         { //
+            _loc2_ = _loc3_; //
+         } //
+         _loc2_ = Math.max(0,Math.min(_loc4_,_loc2_)); // 锚点钳制到有效范围，防陈旧锚点越界
+         _loc3_ = Math.max(0,Math.min(_loc4_,_loc3_)); // 点击帧钳制到有效范围
+         var _loc5_:int = Math.min(_loc2_,_loc3_); //
+         var _loc6_:int = Math.max(_loc2_,_loc3_); //
+         var _loc7_:int = 0; //
+         while(_loc7_ <= _loc4_) //
+         { //
+            this.frameSprites[_loc7_].select(_loc7_ >= _loc5_ && _loc7_ <= _loc6_); // 仅遍历当前组有效帧，隐藏sprite不再被误置选中
+            _loc7_++; //
+         } //
+         this._multiSelect = true; //
+         this.applyCurrent(param1); //
+      } //
+
       public function setXml(param1:XMLList) : void
       {
          var _loc2_:Object = null;
@@ -514,6 +639,8 @@ package views.observe.role
                this.frameSprites[_loc2_].select(false);
             }
          }
+         this._multiSelect = false; // 单选原语：清除多选模式
+         this._anchorIndex = this.frameIndex; //
          this.cframe.text = "当前帧：" + this.frameIndex;
       }
       

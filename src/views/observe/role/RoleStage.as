@@ -226,6 +226,15 @@ package views.observe.role
                this._effect.removeAt(this._effect.indexOf(param1.target as EffectStageObject));
                (param1.target as EffectStageObject).removeFrame();
                break; //
+            case "复制": //
+               { //
+                  var copyObj:EffectStageObject = param1.target as EffectStageObject; //
+                  if(copyObj) //
+                  { //
+                     EffectStageObject.copyEffectData = copyObj.data.getSaveData(); // 复制该特效实例的全部属性JSON
+                  } //
+               } //
+               break; //
             case "编辑碰撞块": //
                { //
                   var effectObj:EffectStageObject = param1.target as EffectStageObject; //
@@ -439,6 +448,16 @@ package views.observe.role
          _loc3_.draw(this._currentFrame, 0);   // 新增：初始化atFrame并立即绘制（缓存命中时同步生效）
          this.onChange();
       }
+
+      public function createToFrameEffectData(param1:Object, param2:Frame) : void //
+      { //
+         var _loc3_:EffectStageObject = new EffectStageObject(param1); // 用复制的属性JSON重建独立实例
+         this.node.addChild(_loc3_); //
+         this._effect.push(_loc3_); //
+         param2.addEffect(_loc3_); // 追加到该帧的effectObjects
+         _loc3_.draw(param2, 0); //
+         this.onChange(); //
+      } //
       
       public function clear() : void
       {
