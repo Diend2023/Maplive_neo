@@ -63,6 +63,7 @@ package views.observe
    import views.observe.text.HitDarwSprite;
    import views.observe.text.TextSpriteFrame;
    import views.observe.text.TimeLine;
+   import spark.components.HSlider; //
    
    use namespace mx_internal;
    
@@ -135,6 +136,18 @@ package views.observe
       private var _previewTarget:int = -1; //
       
       private var _hitSprite:HitDarwSprite;
+
+      private var _zoom:Number = 1; // 画布缩放比例 0.5~4.0
+
+      private var _zoomSlider:HSlider; // 缩放滑块
+
+      private var _zoomLabel:Label; // 缩放百分比
+
+      private var _dragStart:Point; // 拖动起点（舞台坐标）
+
+      private var _dragPos:Point; // 拖动起点时的对象局部位置
+
+      private var _scroller:Scroller; // 画布滚动容器引用
       
       private var _embed_mxml_tmxtools_pencil_png_1597401960:Class;
       
@@ -253,8 +266,13 @@ package views.observe
                textArea.left = 0;
                image.visible = false;
             }
+            draw.addEventListener(MouseEvent.MOUSE_WHEEL,onWheel); //
+            draw.addEventListener(MouseEvent.MIDDLE_MOUSE_DOWN,onMiddleDown); //
+            pointDraw.addEventListener(MouseEvent.MOUSE_WHEEL,onWheel); //
+            pointDraw.addEventListener(MouseEvent.MIDDLE_MOUSE_DOWN,onMiddleDown); //
          });
          stage.addEventListener(MouseEvent.MOUSE_UP,this.onMouseUp);
+         stage.addEventListener(MouseEvent.MOUSE_MOVE,this.onMouseMove); //
       }
       
       private function onSelect(param1:TextSpriteFrame) : void
@@ -280,7 +298,9 @@ package views.observe
          var _loc2_:Point = null;
          if(this.tools.selectedIndex <= 1)
          {
-            this._npc.bitmap.startDrag();
+            // this._npc.bitmap.startDrag();
+            this._dragStart = new Point(stage.mouseX,stage.mouseY); // 记录拖动起点（舞台坐标）
+            this._dragPos = new Point(this._npc.bitmap.x,this._npc.bitmap.y); // 记录对象起始局部位置
             this._isDrop = true;
          }
          else
@@ -316,6 +336,73 @@ package views.observe
          this._isDrop = false;
       }
       
+      private function onMouseMove(param1:MouseEvent) : void // 手动拖动：位移按缩放换算，保证跟手（zoom=1 时与原 startDrag 等价）
+      { //
+         if(this._isDrop && this._npc) //
+         { //
+            this._npc.bitmap.x = this._dragPos.x + (stage.mouseX - this._dragStart.x) / this._zoom; //
+            this._npc.bitmap.y = this._dragPos.y + (stage.mouseY - this._dragStart.y) / this._zoom; //
+         } //
+      } //
+
+      private function setZoom(param1:Number) : void // 画布缩放：draw 与 pointDraw 同步缩放，视口中心保持
+      { //
+         var vp:Object = this._scroller.viewport; //
+         var oldZoom:Number = this._zoom; //
+         var centerX:Number = (vp.horizontalScrollPosition + vp.width / 2) / oldZoom; //
+         var centerY:Number = (vp.verticalScrollPosition + vp.height / 2) / oldZoom; //
+         var offX:Number; //
+         var offY:Number; //
+         var z:Number = Math.max(0.5,Math.min(4.0,param1)); // 缩放范围 50%~400%
+         if(z == this._zoom) //
+         { //
+            return; //
+         } //
+         this._zoom = z; //
+         this.draw.scaleX = this.draw.scaleY = this._zoom; // 画布层缩放
+         this.pointDraw.scaleX = this.pointDraw.scaleY = this._zoom; // 碰撞块层必须同步缩放
+         callLater(function():void //
+         { //
+            vp.horizontalScrollPosition = Math.max(0,Math.min(vp.contentWidth - vp.width,centerX * z - vp.width / 2)); //
+            vp.verticalScrollPosition = Math.max(0,Math.min(vp.contentHeight - vp.height,centerY * z - vp.height / 2)); //
+            offX = (vp.width > draw.width * z) ? (vp.width - draw.width * z) / 2 : 0; // 内容小于视口时居中
+            offY = (vp.height > draw.height * z) ? (vp.height - draw.height * z) / 2 : 0; //
+            draw.x = offX; //
+            draw.y = offY; //
+            pointDraw.x = offX; // 两层保持同一偏移，避免与碰撞块错位
+            pointDraw.y = offY; //
+         }); //
+         if(this._zoomLabel) //
+         { //
+            this._zoomLabel.text = Math.round(this._zoom * 100) + "%"; //
+         } //
+         if(this._zoomSlider) //
+         { //
+            this._zoomSlider.value = this._zoom; //
+         } //
+      } //
+
+      protected function onWheel(param1:MouseEvent) : void // Ctrl+滚轮缩放
+      { //
+         if(param1.ctrlKey) //
+         { //
+            param1.stopImmediatePropagation(); //
+            param1.preventDefault(); //
+            this.setZoom(this._zoom + param1.delta * 0.03); //
+         } //
+      } //
+
+      protected function onMiddleDown(param1:MouseEvent) : void // Ctrl+中键复原 100%
+      { //
+         if(param1.ctrlKey) //
+         { //
+            param1.stopImmediatePropagation(); //
+            param1.preventDefault(); //
+            this._isDrop = false; // 中键可能同时派发 MOUSE_DOWN，取消误触发的拖动
+            this.setZoom(1); //
+         } //
+      } //
+
       override public function onSave() : void
       {
          var newXml:XML = null;
@@ -360,6 +447,7 @@ package views.observe
       protected function onRemove(param1:Event) : void
       {
          stage.removeEventListener(MouseEvent.MOUSE_UP,this.onMouseUp);
+         stage.removeEventListener(MouseEvent.MOUSE_MOVE,this.onMouseMove); //
       }
       
       protected function onPlayOrStop(param1:MouseEvent) : void
@@ -730,13 +818,89 @@ package views.observe
          _loc1_.left = 5;
          _loc1_.percentWidth = 100;
          _loc1_.percentHeight = 100;
-         _loc1_.mxmlContent = [this._TextObserve_Group1_c(),this._TextObserve_Line1_c(),this._TextObserve_TabBar1_i(),this._TextObserve_ViewStack1_i()];
+         // _loc1_.mxmlContent = [this._TextObserve_Group1_c(),this._TextObserve_Line1_c(),this._TextObserve_TabBar1_i(),this._TextObserve_ViewStack1_i()];
+         _loc1_.mxmlContent = [this._TextObserve_Group1_c(),this._TextObserve_Line1_c(),this._TextObserve_TabBar1_i(),this._TextObserve_ViewStack1_i(),this._TextObserve_zoomSpace_c(),this._TextObserve_zoomGroup_c()]; //
          if(!_loc1_.document)
          {
             _loc1_.document = this;
          }
          return _loc1_;
       }
+
+      private function _TextObserve_zoomSpace_c() : Group // 弹性空白，把缩放控件推到工具栏右侧
+      { //
+         var _loc1_:Group = new Group(); //
+         _loc1_.percentWidth = 100; //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         return _loc1_; //
+      } //
+      
+      private function _TextObserve_zoomGroup_c() : HGroup // 缩放控件组：缩放： / 滑块 / 百分比
+      { //
+         var _loc1_:HGroup = new HGroup(); //
+         _loc1_.verticalAlign = "middle"; //
+         _loc1_.gap = 4; //
+         _loc1_.mxmlContent = [this._TextObserve_zoomText_c(),this._TextObserve_zoomSlider_c(),this._TextObserve_zoomLabel_c()]; //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         return _loc1_; //
+      } //
+      
+      private function _TextObserve_zoomText_c() : Label //
+      { //
+         var _loc1_:Label = new Label(); //
+         _loc1_.text = "缩放："; //
+         _loc1_.setStyle("color",16777215); //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         return _loc1_; //
+      } //
+      
+      private function _TextObserve_zoomSlider_c() : HSlider //
+      { //
+         var _loc1_:HSlider = new HSlider(); //
+         _loc1_.minimum = 0.5; //
+         _loc1_.maximum = 4; //
+         _loc1_.stepSize = 0.01; //
+         _loc1_.value = 1; //
+         _loc1_.focusEnabled = false; //
+         _loc1_.verticalCenter = 0; //
+         _loc1_.addEventListener("change",this.__zoomSlider_change); //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         this._zoomSlider = _loc1_; //
+         return _loc1_; //
+      } //
+      
+      public function __zoomSlider_change(param1:Event) : void //
+      { //
+         this.setZoom(this._zoomSlider.value); //
+      } //
+      
+      private function _TextObserve_zoomLabel_c() : Label //
+      { //
+         var _loc1_:Label = new Label(); //
+         _loc1_.text = "100%"; //
+         _loc1_.width = 48; //
+         _loc1_.setStyle("textAlign","center"); //
+         _loc1_.setStyle("verticalAlign","middle"); //
+         _loc1_.setStyle("color",16777215); //
+         if(!_loc1_.document) //
+         { //
+            _loc1_.document = this; //
+         } //
+         this._zoomLabel = _loc1_; //
+         return _loc1_; //
+      } //
       
       private function _TextObserve_Group1_c() : Group
       {
@@ -891,6 +1055,7 @@ package views.observe
          _loc1_.percentWidth = 100;
          _loc1_.percentHeight = 100;
          _loc1_.viewport = this._TextObserve_Group2_c();
+         this._scroller = _loc1_; //
          if(!_loc1_.document)
          {
             _loc1_.document = this;
