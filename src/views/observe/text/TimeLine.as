@@ -241,6 +241,39 @@ package views.observe.text
             }
          }
       }
+
+      public function clearXml() : void //
+      { //
+         while(this._frames.length > 0) //
+         { //
+            var f:TextSpriteFrame = this._frames.pop(); //
+            if(f.parent) //
+            { //
+               f.parent.removeChild(f); //
+            } //
+         } //
+         this.currentFrame = null; //
+      } //
+
+      public function get frameCount() : int //
+      { //
+         return this._frames.length; //
+      } //
+
+      public function selectByName(param1:String) : int // 按精灵表格子名找帧，找到返回下标，找不到返回 -1
+      { //
+         if(param1 == null) return -1; //
+         for(var i:int = 0; i < this._frames.length; i++) //
+         { //
+            if(this._frames[i].data.@name == param1) //
+            { //
+               this.frame = i; // setter 内含越界保护
+               return i; //
+            } //
+         } //
+         return -1; //
+      } //
+
    }
 }
 

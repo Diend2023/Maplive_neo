@@ -192,6 +192,7 @@ package views.observe
             }
             list.dataProvider = _poltListData;
             RightUtils.onRightClick(tree,"poltTree");
+            markInitialState(); //
          });
       }
       
@@ -209,11 +210,14 @@ package views.observe
             case "粘贴":
                if(this._copyNode)
                {
-                  XMLUtils.pushXml(this.tree.selectedItem as XML,this._copyNode,"down");
+                  // XMLUtils.pushXml(this.tree.selectedItem as XML,this._copyNode,"down");
+                  XMLUtils.pushXml(this.tree.selectedItem as XML,this._copyNode.copy(),"down"); // 修复重复粘贴只会移位
+                  this.onChange(); // 粘贴改变了数据，标记修改
                }
                break;
             case "删除":
                XMLUtils.deleteData(this.tree.selectedItem as XML);
+               this.onChange(); // 删除改变了数据，标记修改
          }
       }
       
@@ -284,6 +288,7 @@ package views.observe
          _change = true;
          this.label = this.getName() + " *";
          this.tmxObs.onChange();
+         this.pushUndoSnapshot(); //
       }
       
       override public function onSave() : void
@@ -808,6 +813,40 @@ package views.observe
             }
          }
       }
+
+      protected override function captureState() : String //
+      {
+         if(!this._poltListData) return null; //
+         var arr:Array = []; //
+         for(var i:int = 0; i < this._poltListData.length; i++) //
+         {
+            var it:Object = this._poltListData.getItemAt(i); //
+            arr.push({"name":it.name, "data":(it.data as XML).toXMLString()}); //
+         }
+         return JSON.stringify(arr); //
+      }
+
+      protected override function restoreState(param1:String) : void //
+      { //
+         var arr:Array = JSON.parse(param1) as Array; //
+         var idx:int = this.list.selectedIndex; //
+         this._poltListData = new ArrayCollection(); //
+         for(var i:int = 0; i < arr.length; i++) //
+         { //
+            this._poltListData.addItem({"name":arr[i].name, "data":new XML(arr[i].data)}); //
+         } //
+         this.list.dataProvider = this._poltListData; //
+         if(this._poltListData.length > 0) //
+         { //
+            this.list.selectedIndex = Math.max(0, Math.min(idx, this._poltListData.length - 1)); //
+            this.onSelect(); // 重设 tree.dataProvider + 展开，复用现有逻辑
+         } //
+         else //
+         { //
+            this.tree.dataProvider = null; //
+         } //
+      } //
+
    }
 }
 

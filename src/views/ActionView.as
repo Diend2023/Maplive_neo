@@ -178,6 +178,10 @@ package views
                this.editxml.@type = this.skilltype.selectedItem.type;
                this.editxml.@other = JSON.stringify(this.attrArray);
                this.editxml.@msg = this.msg.text;
+               if(Boolean(this.callFunc)) // 编辑模式也回调：让 TimeLine 标 * 并入撤销栈
+               { //
+                  this.callFunc(this); //
+               } //
             }
             PopUpManager.removePopUp(this);
          }

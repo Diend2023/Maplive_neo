@@ -80,6 +80,10 @@ package views.observe
       public static var roleCount:int = 0; // 打开的角本数（用于关闭所有角色后清除特效缓存）
 
       private var _isClosed:Boolean = false; // 防止discarded重复执行
+
+      private var _lastEffect:EffectStageObject; // 最后选中的特效（面板刷新用，不随 onStageUp 清空）
+
+      private var _editFrame:Frame; // 本次改动针对的帧：属性面板绑定的那一帧 / 特效所属帧
       
       public function RoleObserve()
       {
@@ -168,6 +172,7 @@ package views.observe
                   }
                   roleStage.role = _loc1_;
                   timeline.updateGPU();
+                  markInitialState(); //
                });
             }
             catch(e:Error)
@@ -210,6 +215,7 @@ package views.observe
       private function onMouseSelect(param1:Frame) : void
       {
          var frame:Frame = param1;
+         this._editFrame = frame; // 面板即将绑定到这一帧，后续帧属性编辑就针对它
          this.roleAttribute.stack.selectedIndex = 1;
          this.roleAttribute.enabled = true;
          callLater(function():void
@@ -230,6 +236,7 @@ package views.observe
       
       public function onFrameSelect(param1:Frame) : void
       {
+         if(param1) this._editFrame = param1; //
          this.roleStage.draw(param1,0);
          if(this.roleStage.tools.selectedIndex == 1 && Boolean(param1))
          {
@@ -270,6 +277,8 @@ package views.observe
             effect.select(true);
             this.roleAttribute.stack.selectedIndex = 0;
             this._effectStageObject = effect;
+            this._lastEffect = effect; // 记录
+            this._editFrame = effect.frame; // 特效参数的目标帧
             this._movePoint.x = this.mouseX;
             this._movePoint.y = this.mouseY;
             this._effectStageObject.startDrag();
@@ -312,6 +321,10 @@ package views.observe
          {
             return;
          }
+         if(this._effectStageObject) // 只有确实拖过特效才标脏
+         { //
+            this.onChange(); // 拖动结束，标记修改（同时触发撤销快照）
+         } //
          this._effectStageObject = null;
          this.stopDrag();
       }
@@ -320,6 +333,7 @@ package views.observe
       {
          super.onChange();
          this.timeline.setFrameGroup(this.timeline.currentFrameGroup);
+         this.pushUndoSnapshot(); //
       }
       
       override public function onKeyDown(param1:KeyboardEvent) : void
@@ -687,6 +701,148 @@ package views.observe
             }
          }
       }
+
+      protected override function captureState() : String //
+      {
+         if(!this._data || this._data.@type == "dragonbone" || !this.timeline) return null; // 首版跳过龙骨角色
+         this.timeline.onUpdateSave(this._data.loads); // 先同步原数据（与 onSave 同路径），再拷贝
+         var snap:XML = this._data.copy(); // 后拷贝
+         var o:Object = {}; //
+         o.xml = snap.toXMLString(); //
+         var tf:Frame = this._editFrame || this.timeline.currentFrame; // 目标帧优先，别用“浏览位置”
+         if(this.roleAttribute && this.roleAttribute.stack.selectedChild is SkillAttribute && this._lastEffect && this._lastEffect.frame) //
+         { //
+            tf = this._lastEffect.frame; // 特效页：参数写进“特效所属帧”，舞台选特效不会移动时间轴
+         } //
+         o.f = tf ? tf.at : -1; // Frame.at = 该帧在组内的下标（FrameGroup.as:39 赋值）
+         o.an = tf ? this._actionNameOf(tf.group) : null; // 反查目标帧所属动作组名
+         o.a = this._idxOfAction(o.an); // 保底下标与 o.an 同源
+         o.ei = -1; // 选中的特效在该帧 effectObjects 里的下标
+         o.en = null; // 特效名：特效增删后下标会错位，用名字校正
+         o.pg = this.roleAttribute ? int(this.roleAttribute.stack.selectedIndex) : -1; // 记录编辑时的属性页：0=特效，1=帧
+         var sel:EffectStageObject = this._effectStageObject || this._lastEffect; //
+         if(sel && sel.frame) //
+         { //
+            o.ei = sel.frame.effectObjects.indexOf(sel); // Frame.effectObjects 是 public（Frame.as:26）
+            o.en = sel.data.name; //
+         } //
+         return JSON.stringify(o); //
+      }
+
+      protected override function restoreState(param1:String) : void //
+      { //
+         var o:Object = JSON.parse(param1); //
+         var v:Object = o; // 视图目标：默认用快照自身的位置
+         if(this._viewState) // 撤销时改用“被撤销掉的那一步”的位置——内容就在那儿
+         { //
+            var vo:Object = JSON.parse(this._viewState); //
+            if(vo && (vo.an != null || vo.a != null)) v = vo; //
+         } //
+         this._data = new XML(o.xml); //
+         this.timeline.xml = this._data; // fps 等绑定刷新
+         this.timeline.setXml(this._data.action.child("act")); // 重建动作组
+         if(this.timeline.actions.length > 0) //
+         { //
+            var a:int = this._idxOfAction(v.an); //
+            if(a == -1 && v !== o) a = this._idxOfAction(o.an); // 那一步的动作已不存在（如撤销“新增动作”）→ 退回快照自身的动作
+            if(a == -1 && v.an == null && o.an == null && this.timeline.currentFrameGroup != null) //
+            { // 快照与当前状态都没记动作名：保持当前动作组，别滑到第 0 组（currentFrameGroup 是 public，TimeLine.as:113）
+               for(var k:int = 0; k < this.timeline.actions.length; k++) //
+               { //
+                  if(this.timeline.actions.getItemAt(k).data == this.timeline.currentFrameGroup) { a = k; break; } //
+               } //
+            } //
+            if(a == -1) a = Math.max(0, Math.min(int(v.a), this.timeline.actions.length - 1)); //
+            var group:FrameGroup = this.timeline.actions.getItemAt(a).data as FrameGroup; //
+            var src:Object = this.timeline.actions.getItemAt(a).name == v.an || v.an == null ? v : o; // v 没记动作名也算同源，别滑到 o
+            var fi:int = src.f == null ? -1 : int(src.f); //
+            if(fi < 0) fi = o.f == null ? -1 : int(o.f); // 注意 int(null)=0，必须显式判空
+            if(fi < 0) fi = this.timeline.currentFrame ? this.timeline.currentFrame.at : -1; // 停在当前帧
+            if(fi < 0) fi = 0; //
+            if(fi >= group.frames.length) fi = group.frames.length - 1; // 只有越界才落末帧
+            this.timeline.drop.selectedIndex = a; //
+            this.timeline.onGroupSelect(group); // 先 setGroup：把重建后的特效实例挂上舞台
+            this.timeline.setFrameGroup(group); // 重建帧条并选中
+            this.timeline.select(fi); // 跳到目标帧
+            this.roleStage.resetDraw(); // 解除“同帧短路”
+            this.onFrameSelect(this.timeline.currentFrame); // 重绘角色，并给所有特效实例喂 atFrame
+            var pg:int = v.pg == null ? (o.pg == null ? -1 : int(o.pg)) : int(v.pg); // 这次撤销掉的那一步在哪一页
+            if(pg >= 0 && this.roleAttribute && this.roleAttribute.stack.selectedIndex != pg) //
+            { // 跨页撤销：先切页再回填；ViewStack 子项是延迟创建的，必须 callLater（与 onMouseSelect:221 同套路）
+               if(pg == 1) this.roleStage.cannelSelect(); // 回帧页：撤掉画布上遗留的特效选中框
+               this.roleAttribute.stack.selectedIndex = pg; //
+               callLater(function():void { refreshAttribute(v.ei,v.en); }); //
+            } //
+            else //
+            { //
+               this.refreshAttribute(v.ei,v.en); // 把恢复后的帧/特效重新灌回属性面板
+            } //
+         } //
+      } //
+
+      private function _idxOfAction(param1:String) : int //
+      { //
+         if(param1 == null) return -1; //
+         for(var i:int = 0; i < this.timeline.actions.length; i++) //
+         { //
+            if(this.timeline.actions.getItemAt(i).name == param1) return i; //
+         } //
+         return -1; //
+      } //
+
+      private function clearEffectSelection() : void // 特效已不在新树上：断开引用，别让下一次 captureState 读到旧实例
+      { //
+         if(this.roleStage) this.roleStage.cannelSelect(); //
+         this._effectStageObject = null; //
+         this._lastEffect = null; //
+      } //
+
+      private function refreshAttribute(param1:Object, param2:Object) : void // 恢复后重放一次“选中填充”，否则输入框是旧值/旧数据对象
+      { //
+         if(!this.roleAttribute || !this.timeline || this.timeline.currentFrame == null) return; //
+         var child:Object = this.roleAttribute.stack.selectedChild; //
+         if(child is FrameAttribute) // 帧属性页
+         { //
+            this.roleAttribute.frameAttr.setFrame(this.timeline.currentFrame); // 内部 callLater 重填全部输入框
+            return; //
+         } //
+         if(!(child is SkillAttribute)) return; // 特效/技能页
+         var objs:Vector.<EffectStageObject> = this.timeline.currentFrame.effectObjects; //
+         if(objs.length == 0) { this.clearEffectSelection(); return; } //
+         var i:int = param1 == null ? -1 : int(param1); //
+         var nm:String = param2 == null ? null : String(param2); //
+         if(nm != null && i >= 0 && i < objs.length && objs[i].data.name != nm) // 下标对不上 → 按名字找
+         { //
+            for(var j:int = 0; j < objs.length; j++) //
+            { //
+               if(objs[j].data.name == nm) { i = j; break; } //
+            } //
+         } //
+         if(i < 0 || i >= objs.length) { this.clearEffectSelection(); return; } // 该特效被撤销删掉了 → 断开旧实例引用，面板留空等重选
+         (child as SkillAttribute).setEffectData(objs[i].data); // 绑到重建后的新数据对象
+         this.roleStage.cannelSelect(); //
+         objs[i].select(true); // 画布上恢复选中框
+         this._lastEffect = objs[i]; // 换绑到重建后的新实例，否则下一次 captureState 读到的是旧树
+      } //
+
+      private function _actionNameOf(param1:FrameGroup) : String // 反查目标帧所属的动作组名
+      { //
+         if(param1) //
+         { //
+            for(var i:int = 0; i < this.timeline.actions.length; i++) //
+            { //
+               if(this.timeline.actions.getItemAt(i).data == param1) return this.timeline.actions.getItemAt(i).name; //
+            } //
+         } //
+         return null; //
+      } //
+
+      protected override function snapshotKey(param1:String) : String //
+      { //
+         var o:Object = JSON.parse(param1); //
+         return o && o.xml != null ? String(o.xml) : param1; // 只比数据，不比“当时停在哪一帧”
+      } //
+
    }
 }
 

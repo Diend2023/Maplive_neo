@@ -59,6 +59,8 @@ package views.observe.role
       private var _118807xml:XML;
       
       private var __moduleFactoryInitialized:Boolean = false;
+
+      public var callFunc:Function; // 确定后的回调：由 TimeLine.onRoleConfig 注入用来标 *（弹窗挂在 SystemManager 上，CHANGE 冒泡到不了 RoleObserve）
       
       public function RoleConfigView()
       {
@@ -92,6 +94,10 @@ package views.observe.role
          this.xml.@scale = this.scale.text;
          this.xml.@fps = this.fps.text;
          this.xml.@hitEffectName = this.effectName.text;
+         if(Boolean(this.callFunc)) // 三个属性已写进内存 xml：回调让 TimeLine 标 *
+         { //
+            this.callFunc(this); //
+         } //
          this.dispatchEvent(new Event(OpenEvent.CHANGE,true));
          PopUpManager.removePopUp(this);
       }

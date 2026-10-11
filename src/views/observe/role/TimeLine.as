@@ -765,6 +765,7 @@ package views.observe.role
             "name":_loc2_.@name,
             "data":new FrameGroup(_loc2_,int(this.xml.@fps))
          });
+         this.onChange(); // 新增动作已改 _xml：标 * 并入撤销栈（原来漏了）
          PopUpManager.removePopUp(param1);
       }
       
@@ -787,16 +788,38 @@ package views.observe.role
       {
          var _loc2_:RoleConfigView = new RoleConfigView();
          _loc2_.xml = this.xml;
+         _loc2_.callFunc = this.onRoleConfigCommit; // 确定后回调：角色配置只改内存 xml，需要它来标 *
          PopUpManager.addPopUp(_loc2_,this,true);
       }
       
+      protected function onRoleConfigCommit(param1:RoleConfigView) : void // 角色配置确定：@scale/@fps/@hitEffectName 已写入 xml
+      { //
+         this.onChange(); // → RoleObserve.onChange；撤销时 restoreState 的 timeline.xml = _data（RoleObserve.as:742）会把 fps 等绑定刷回去
+      } //
+
       protected function onEidtAction(param1:MouseEvent) : void
       {
          var _loc2_:ActionView = new ActionView();
          _loc2_.editxml = this.currentFrameGroup.data;
+         _loc2_.callFunc = this.onActionEdit; // 编辑确定后回调：补上标 * 与撤销快照
          PopUpManager.addPopUp(_loc2_,this,true);
       }
       
+      protected function onActionEdit(param1:ActionView) : void // 编辑动作确定：@name/@cd/@key/@type/@other/@msg 已写进 editxml
+      { //
+         var idx:int = this.drop.selectedIndex; // 编辑的一定是当前选中的那个动作
+         if(idx >= 0 && idx < this.actions.length) //
+         { //
+            var item:Object = this.actions.getItemAt(idx); //
+            if(item != null) //
+            { //
+               item.name = String(param1.editxml.@name); // 下拉项的 name 是 setXml/新增时拷进来的字符串，必须手动同步
+               this.actions.itemUpdated(item,"name"); // 抛 CollectionEvent.UPDATE：按钮文字重算、列表项重绘
+            } //
+         } //
+         this.onChange(); // → RoleObserve.onChange：pushUndoSnapshot + 标签加 *
+      } //
+
       public function nextFrame() : void
       {
          var _loc1_:int = this.currentFrame.at + 1;
@@ -1111,7 +1134,8 @@ package views.observe.role
          var _loc1_:Button = new Button();
          _loc1_.width = 26;
          _loc1_.height = 26;
-         _loc1_.setStyle("icon","tmxtools/pencil.png");
+         // _loc1_.setStyle("icon","tmxtools/pencil.png");
+         _loc1_.setStyle("icon",RoleStage__embed_mxml_tmxtools_pencil_png_1597401960); // 原tmxtools/pencil.png不存在使用内部替换
          _loc1_.setStyle("color",16777215);
          _loc1_.setStyle("skinClass",IconButtonSkin);
          _loc1_.addEventListener("click",this.___TimeLine_Button5_click);

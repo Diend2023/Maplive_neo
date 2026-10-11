@@ -257,6 +257,7 @@ package views.observe
                   timeline.setXml(param1.targetXml);
                   draw.width = _npc.width * 2 + _npc.x;
                   draw.height = _npc.height * 2 + _npc.y;
+                  markInitialState(); //
                });
             }
             else
@@ -265,6 +266,7 @@ package views.observe
                image.height = 0;
                textArea.left = 0;
                image.visible = false;
+               markInitialState(); //
             }
             draw.addEventListener(MouseEvent.MOUSE_WHEEL,onWheel); //
             draw.addEventListener(MouseEvent.MIDDLE_MOUSE_DOWN,onMiddleDown); //
@@ -485,6 +487,7 @@ package views.observe
       {
          super.onChange();
          this.updateXml();
+         this.pushUndoSnapshot(); //
       }
       
       protected function onEffChange(param1:Event) : void
@@ -1921,6 +1924,52 @@ package views.observe
             }
          }
       }
+
+      protected override function captureState() : String //
+      { //
+         var o:Object = {}; //
+         o.text = this.textArea ? this.textArea.text : null; //
+         if(this._npc && this._npc.getData() && this._npc.getData().targetXml) //
+         { //
+            o.targetXml = this._npc.getData().targetXml.toXMLString(); //
+         } //
+         o.f = -1; // 编辑目标帧在时间轴里的下标
+         o.fn = null; // 该帧的精灵表格子名（帧增删后用名字找更稳）
+         if(this.timeline && this.timeline.currentFrame) //
+         { //
+            var tf:TextSpriteFrame = this.timeline.currentFrame.hitFrameReference || this.timeline.currentFrame; // 打击特效写在命中帧上，内容在它那儿
+            o.f = tf.id; //
+            o.fn = tf.data.@name; // 属性缺失时是 undefined，JSON.stringify 会直接丢掉这个键
+         } //
+         return JSON.stringify(o); //
+      } //
+
+      protected override function restoreState(param1:String) : void //
+      { //
+         var o:Object = JSON.parse(param1); //
+         if(this._npc && this._npc.getData() && o.targetXml) //
+         { //
+            this._npc.getData().targetXml = new XML(o.targetXml); // 直接替换引用（updateXmlData 同款用法）
+            this.timeline.clearXml(); //
+            this.timeline.setXml(this._npc.getData().targetXml); // 重设底部时间轴（内部会把选中帧归 0，下面纠回来）
+            this._restoreFrame(this._viewState ? JSON.parse(this._viewState) : o); // 撤销取“被撤销那一步”的位置，重做取快照自身
+         } //
+         if(this.textArea) this.textArea.text = o.text; //
+         this.updateXml(); // 刷新文本框/碰撞点/sound 等控件
+      } //
+
+      private function _restoreFrame(param1:Object) : void //
+      { //
+         if(!this.timeline || this.timeline.currentFrame == null) return; // clearXml 后 currentFrame 为 null，读 getter 会抛错
+         var idx:int = -1; //
+         if(param1.fn != null) idx = this.timeline.selectByName(param1.fn); // ① 名字优先：帧增删后下标会错位
+         if(idx == -1 && param1.f != null) idx = int(param1.f); // ② 下标保底
+         if(idx > this.timeline.frameCount - 1) idx = this.timeline.frameCount - 1; // ③ 越界（该帧被撤销掉）→ 末帧，别走 setter 的 return 或 0
+         if(idx < 0) idx = 0; //
+         this.timeline.frame = idx; //
+         this.onSelect(this.timeline.currentFrame); // 刷新碰撞点/eff/hurt/cardFrame/pframeName/xmlConfig，并把 NPC 预览切过去
+      } //
+
    }
 }
 

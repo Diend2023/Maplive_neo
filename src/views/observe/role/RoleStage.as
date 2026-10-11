@@ -357,6 +357,11 @@ package views.observe.role
          }
       }
       
+      public function resetDraw() : void //
+      { //
+         this._currentFrame = null; // 解除“同一帧短路”，让重建后的特效实例重新拿到 atFrame
+      } //
+
       public function setGroup(param1:FrameGroup) : void
       {
          var _loc2_:Object = null;

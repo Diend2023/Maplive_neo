@@ -161,13 +161,14 @@ package views.attribute
          {
             return;
          }
-         super.onChannge();
+         // super.onChannge();
          this._frame.isHitMapGoOn = this.hitNext.selected;
          this._frame.soundName = this.soundName.text;
          this._frame.isStop = this.stopNext.selected;
          this._frame.golden = Number(this.golden.text);
          this._frame.turn = this.turn.selected ? 1 : 0;
          this._frame.hitEffectName = this.hitEffectName.text;
+         super.onChannge(); // 先改数据再刷新舞台
       }
       
       protected function onSelectHitEffect(param1:MouseEvent) : void

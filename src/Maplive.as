@@ -257,6 +257,12 @@ package
             {
                case Keyboard.S:
                   this.saveProject();
+                  break; //
+               case Keyboard.Z: //
+                  (this.viewstack.selectedChild as RefObserve).onUndo(); // Ctrl+Z 撤销
+                  break; //
+               case Keyboard.Y: //
+                  (this.viewstack.selectedChild as RefObserve).onRedo(); // Ctrl+Y 重做
             }
          }
          (this.viewstack.selectedChild as RefObserve).onKeyUp(param1);
