@@ -939,7 +939,8 @@ package views.observe
             {
                sceneryList.addItem({
                   "name":spriteData.targetName,
-                  "classBind":spriteData.targetXml["class"],
+                  // "classBind":spriteData.targetXml["class"],
+                  "classBind":spriteData.targetXml["@class"],  //
                   "data":new BitmapDataArrayList(spriteData),
                   "path":spriteData.path
                });
@@ -1063,7 +1064,8 @@ package views.observe
             {
                _loc9_ = new Scenery(_loc6_.name,_loc6_.target,_loc8_,_loc7_.getBitmapDataFormName(_loc6_.name).xml);
                _loc9_.applyObject(_loc6_);
-               _loc9_.rootClass = _loc7_.targetXml["class"];
+               // _loc9_.rootClass = _loc7_.targetXml["class"];
+               _loc9_.rootClass = _loc7_.targetXml["@class"];  //
                _loc10_ = this._starlingMap.getChildByName(param1) as MapLayer;
                if(!_loc10_)
                {

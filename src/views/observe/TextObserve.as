@@ -245,8 +245,10 @@ package views.observe
                   _npc.y = draw.height / 2;
                   px.text = int(_npc.getData().targetXml.@px).toFixed();
                   py.text = int(_npc.getData().targetXml.@py).toFixed();
-                  pclass.text = String(_npc.getData().targetXml["class"]);
-                  sound.text = String(_npc.getData().targetXml["sound"]);
+                  // pclass.text = String(_npc.getData().targetXml["class"]);
+                  // sound.text = String(_npc.getData().targetXml["sound"]);
+                  pclass.text = String(_npc.getData().targetXml["@class"]);  //
+                  sound.text = String(_npc.getData().targetXml["@sound"]);   //
                   _hitSprite = new HitDarwSprite();
                   pointDraw.addChild(_hitSprite);
                   _hitSprite.x = _npc.x;
@@ -415,7 +417,8 @@ package views.observe
             System.disposeXML(this._npc.getData().targetXml);
             this.px.text = String(int(this._npc.getData().targetXml.@px));
             this.py.text = String(int(this._npc.getData().targetXml.@py));
-            this.pclass.text = String(this._npc.getData().targetXml["class"]);
+            // this.pclass.text = String(this._npc.getData().targetXml["class"]);
+            this.pclass.text = String(this._npc.getData().targetXml["@class"]);  //
             super.onSave();
          }
          catch(e:Error)
@@ -441,8 +444,10 @@ package views.observe
       {
          this._npc.getData().targetXml.@px = int(this.px.text);
          this._npc.getData().targetXml.@py = int(this.py.text);
-         this._npc.getData().targetXml["class"] = this.pclass.text;
-         this._npc.getData().targetXml["sound"] = this.sound.text;
+         // this._npc.getData().targetXml["class"] = this.pclass.text;
+         // this._npc.getData().targetXml["sound"] = this.sound.text;
+         this._npc.getData().targetXml["@class"] = this.pclass.text;  //
+         this._npc.getData().targetXml["@sound"] = this.sound.text;   //
          this.onChange();
       }
       

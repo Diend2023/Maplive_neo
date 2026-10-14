@@ -107,10 +107,14 @@ package tmx
       
       override public function get classBind() : String
       {
-         if(this._data.targetXml["class"] != undefined)
-         {
-            return this._data.targetXml["class"];
-         }
+         // if(this._data.targetXml["class"] != undefined)
+         // {
+         //    return this._data.targetXml["class"];
+         // }
+         if(this._data.targetXml["@class"] != undefined)  //
+         { //
+            return this._data.targetXml["@class"];  //
+         } //
          return "<null>";
       }
       

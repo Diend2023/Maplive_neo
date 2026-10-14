@@ -74,6 +74,7 @@ package views.observe.role.frame
       
       public function add(param1:Frame, param2:int) : void
       {
+         param1.group = this; // 新增帧回填所属组（构造函数回填了，add 漏了）：否则 _actionNameOf 反查不到，撤销快照 an=null 会滑到第 0 组
          this.frames.splice(param2,0,param1);
          if(this.data.children().length() == 0)
          {

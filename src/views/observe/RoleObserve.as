@@ -752,7 +752,12 @@ package views.observe
                   if(this.timeline.actions.getItemAt(k).data == this.timeline.currentFrameGroup) { a = k; break; } //
                } //
             } //
-            if(a == -1) a = Math.max(0, Math.min(int(v.a), this.timeline.actions.length - 1)); //
+            if(a == -1) // 兜底：快照没记动作名时保持用户当前选中的动作，别一律滑到第 0 组
+            { //
+               var cur:int = this.timeline.drop ? this.timeline.drop.selectedIndex : -1; //
+               a = v.a != null && int(v.a) >= 0 ? int(v.a) : (cur >= 0 && cur < this.timeline.actions.length ? cur : 0); //
+               if(a >= this.timeline.actions.length) a = this.timeline.actions.length - 1; //
+            } //
             var group:FrameGroup = this.timeline.actions.getItemAt(a).data as FrameGroup; //
             var src:Object = this.timeline.actions.getItemAt(a).name == v.an || v.an == null ? v : o; // v 没记动作名也算同源，别滑到 o
             var fi:int = src.f == null ? -1 : int(src.f); //
