@@ -278,37 +278,100 @@ package views.observe.role
                } //
                break; //
             case "删除帧":
+               if(this.getSelectedIndices().length > 1) //
+               { //
+                  var _loc17_:Array = this.getSelectedIndices(); // 确认前先捕获索引，避免弹窗期间选中被重置
+                  Alert.show("是否删除选中的 " + _loc17_.length + " 帧？","删除提示",Alert.OK | Alert.NO,null,function(param1:CloseEvent):void
+                  { //
+                     if(param1.detail == Alert.OK) //
+                     { //
+                        removeSelectedFrames(_loc17_); //
+                     } //
+                  }); //
+               } //
+               else //
+               { //
                this.removeAt(this.frameIndex);
                this.onChange();
+               } //
                break;
             case "清除位移":
+               if(this.getSelectedIndices().length > 1) //
+               { //
+                  this.confirmFrameOperation("是否清除选中 " + this.getSelectedIndices().length + " 帧的位移？",this.clearMoveSelected); //
+               } //
+               else //
+               { //
                this.currentFrame.isGoPoint = false;
                this.currentFrameGroup.math();
                this.onChange();
+               } //
                break;
             case "清除碰撞":
+               if(this.getSelectedIndices().length > 1) //
+               { //
+                  this.confirmFrameOperation("是否清除选中 " + this.getSelectedIndices().length + " 帧的碰撞？",this.clearHitSelected); //
+               } //
+               else //
+               { //
                this.currentFrame.hitPoint = null;
                this.onChange();
+               } //
                break;
             case "清除音效":
+               if(this.getSelectedIndices().length > 1) //
+               { //
+                  this.confirmFrameOperation("是否清除选中 " + this.getSelectedIndices().length + " 帧的音效？",this.clearSoundSelected); //
+               } //
+               else //
+               { //
                this.currentFrame.soundName = "";
                this.onChange();
+               } //
                break;
             case "清除停顿":
+               if(this.getSelectedIndices().length > 1) //
+               { //
+                  this.confirmFrameOperation("是否清除选中 " + this.getSelectedIndices().length + " 帧的停顿？",this.clearStopSelected); //
+               } //
+               else //
+               { //
                this.currentFrame.isStop = false;
                this.onChange();
+               } //
                break;
             case "粘贴元素": //
                { //
-                  if(EffectStageObject.copyEffectData != null && this.currentFrame && this.observe && this.observe.roleStage) //
+                  if(this.getSelectedIndices().length > 1) //
+                  { //
+                     if(EffectStageObject.copyEffectData != null) //
+                     { //
+                        var _loc18_:Object = JSON.parse(EffectStageObject.copyEffectData); // 只解析一次，各帧分别创建独立实例
+                        Alert.show("是否为选中的 " + this.getSelectedIndices().length + " 帧各添加一个复制的特效？","粘贴元素",Alert.OK | Alert.NO,null,function(param1:CloseEvent):void
+                        { //
+                           if(param1.detail == Alert.OK) //
+                           { //
+                              pasteEffectToSelected(_loc18_); //
+                           } //
+                        }); //
+                     } //
+                  } //
+                  else if(EffectStageObject.copyEffectData != null && this.currentFrame && this.observe && this.observe.roleStage) //
                   { //
                      this.observe.roleStage.createToFrameEffectData(JSON.parse(EffectStageObject.copyEffectData),this.currentFrame); // 追加至当前帧（内部挂显示列表、绘制、onChange）
                   } //
                } //
                break; //
             case "清除元素":
+               if(this.getSelectedIndices().length > 1) //
+               { //
+                  this.confirmFrameOperation("是否清除选中 " + this.getSelectedIndices().length + " 帧的所有特效？",this.clearEffectSelected); //
+               } //
+               else //
+               { //
                this.currentFrame.clearAllEffect();
                this.onChange();
+               } //
                break;
             case "删除所有帧":
                Alert.show("是否删除所有帧，将不可还原","删除提示",Alert.OK | Alert.NO,null,function(param1:CloseEvent):void
@@ -377,18 +440,57 @@ package views.observe.role
 
       private function updateMenuState(param1:FrameSprite) : void //
       { //
-         var _loc2_:Boolean = this._multiSelect && this.getSelectedIndices().length > 1; // 多选模式：仅“复制帧”可用
+         var _loc2_:Boolean = this._multiSelect && this.getSelectedIndices().length > 1; // 是否多选
+         var _loc3_:Boolean = param1.isEffect(); //
+         var _loc4_:Boolean = param1.isStop(); //
+         var _loc5_:Boolean = param1.isSound(); //
+         var _loc6_:Boolean = param1.isHit(); //
+         var _loc7_:Boolean = param1.isMove(); //
+         if(_loc2_) //
+         { //
+            var _loc8_:Vector.<Frame> = this.getSelectedFrames(); //
+            _loc3_ = false; //
+            _loc4_ = false; //
+            _loc5_ = false; //
+            _loc6_ = false; //
+            _loc7_ = false; //
+            var _loc9_:int = 0; //
+            while(_loc9_ < _loc8_.length) //
+            { //
+               if(_loc8_[_loc9_].effectObjects.length > 0) //
+               { //
+                  _loc3_ = true; // 任一选中帧有特效即可清除元素
+               } //
+               if(_loc8_[_loc9_].isStop) //
+               { //
+                  _loc4_ = true; //
+               } //
+               if(_loc8_[_loc9_].soundName != "") //
+               { //
+                  _loc5_ = true; //
+               } //
+               if(_loc8_[_loc9_].hitPoint.length > 2) //
+               { //
+                  _loc6_ = true; //
+               } //
+               if(_loc8_[_loc9_].isGoPoint) //
+               { //
+                  _loc7_ = true; //
+               } //
+               _loc9_++; //
+            } //
+         } //
          (param1.contextMenu.items[0] as NativeMenuItem).enabled = true; // 复制帧
-         (param1.contextMenu.items[1] as NativeMenuItem).enabled = !_loc2_ && this.canPasteFrame(); // 粘贴帧至左侧
-         (param1.contextMenu.items[2] as NativeMenuItem).enabled = !_loc2_ && this.canPasteFrame(); // 粘贴帧至右侧
-         (param1.contextMenu.items[3] as NativeMenuItem).enabled = !_loc2_; // 删除帧
-         (param1.contextMenu.items[4] as NativeMenuItem).enabled = !_loc2_ && EffectStageObject.copyEffectData != null; // 粘贴元素
-         (param1.contextMenu.items[5] as NativeMenuItem).enabled = !_loc2_ && param1.isEffect(); // 清除元素
-         (param1.contextMenu.items[6] as NativeMenuItem).enabled = !_loc2_ && param1.isStop(); // 清除停顿
-         (param1.contextMenu.items[7] as NativeMenuItem).enabled = !_loc2_ && param1.isSound(); // 清除音效
-         (param1.contextMenu.items[8] as NativeMenuItem).enabled = !_loc2_ && param1.isHit(); // 清除碰撞
-         (param1.contextMenu.items[9] as NativeMenuItem).enabled = !_loc2_ && param1.isMove(); // 清除位移
-         (param1.contextMenu.items[10] as NativeMenuItem).enabled = !_loc2_; // 删除所有帧
+         (param1.contextMenu.items[1] as NativeMenuItem).enabled = !_loc2_ && this.canPasteFrame(); // 粘贴帧至左侧（仅单选）
+         (param1.contextMenu.items[2] as NativeMenuItem).enabled = !_loc2_ && this.canPasteFrame(); // 粘贴帧至右侧（仅单选）
+         (param1.contextMenu.items[3] as NativeMenuItem).enabled = true; // 删除帧（多选批量删除，带确认）
+         (param1.contextMenu.items[4] as NativeMenuItem).enabled = EffectStageObject.copyEffectData != null; // 粘贴元素（多选为每帧各加一个，带确认）
+         (param1.contextMenu.items[5] as NativeMenuItem).enabled = _loc3_; // 清除元素
+         (param1.contextMenu.items[6] as NativeMenuItem).enabled = _loc4_; // 清除停顿
+         (param1.contextMenu.items[7] as NativeMenuItem).enabled = _loc5_; // 清除音效
+         (param1.contextMenu.items[8] as NativeMenuItem).enabled = _loc6_; // 清除碰撞
+         (param1.contextMenu.items[9] as NativeMenuItem).enabled = _loc7_; // 清除位移
+         (param1.contextMenu.items[10] as NativeMenuItem).enabled = !_loc2_; // 删除所有帧：多选有歧义，保持禁用
       } //
       
       public function getSelectedIndices() : Array //
@@ -409,7 +511,165 @@ package views.observe.role
          } //
          return _loc1_; //
       } //
+
+      private function restoreSelectedIndices(param1:Array) : void //
+      { //
+         if(!this.currentFrameGroup || param1 == null) //
+         { //
+            return; //
+         } //
+         var _loc2_:int = 0; //
+         while(_loc2_ < this.frameSprites.length) //
+         { //
+            this.frameSprites[_loc2_].select(_loc2_ < this.currentFrameGroup.frames.length && param1.indexOf(_loc2_) != -1); // 只恢复仍有效的索引
+            _loc2_++; //
+         } //
+         this._multiSelect = param1.length > 1; // 恢复多选模式
+         this.cframe.text = "当前帧：" + this.frameIndex; //
+      } //
       
+      private function confirmFrameOperation(param1:String, param2:Function) : void //
+      { //
+         Alert.show(param1,"操作确认",Alert.OK | Alert.NO,null,function(param1:CloseEvent):void
+         { //
+            if(param1.detail == Alert.OK) //
+            { //
+               param2(); // 绑定的方法引用，this保持为TimeLine
+            } //
+         }); //
+      } //
+      
+      private function getSelectedFrames() : Vector.<Frame> //
+      { //
+         var _loc1_:Vector.<Frame> = new Vector.<Frame>(); //
+         if(!this.currentFrameGroup) //
+         { //
+            return _loc1_; //
+         } //
+         var _loc2_:Array = this.getSelectedIndices(); //
+         var _loc3_:int = 0; //
+         while(_loc3_ < _loc2_.length) //
+         { //
+            _loc1_.push(this.currentFrameGroup.frames[_loc2_[_loc3_]]); //
+            _loc3_++; //
+         } //
+         return _loc1_; //
+      } //
+      
+      private function removeSelectedFrames(param1:Array) : void //
+      { //
+         if(!this.currentFrameGroup) //
+         { //
+            return; //
+         } //
+         var _loc2_:int = param1[0]; // 最小选中索引，删除后作为当前帧
+         var _loc3_:int = param1.length - 1; //
+         while(_loc3_ >= 0) //
+         { //
+            this.currentFrameGroup.remove(param1[_loc3_]); // 降序删除，避免索引漂移
+            _loc3_--; //
+         } //
+         this.frameIndex = Math.min(_loc2_,this.currentFrameGroup.frames.length - 1); //
+         this.setFrameGroup(this.currentFrameGroup); //
+         if(this.observe && this.observe.roleStage) //
+         { //
+            this.observe.roleStage.setGroup(this.currentFrameGroup); // 重建特效显示列表，清除被删帧残留特效
+         } //
+         this.onChange(); //
+      } //
+      
+      private function clearMoveSelected() : void //
+      { //
+         var _loc1_:Vector.<Frame> = this.getSelectedFrames(); //
+         var _loc3_:Array = this.getSelectedIndices(); // 捕获多选，onChange重建后会清空 //
+         var _loc2_:int = 0; //
+         while(_loc2_ < _loc1_.length) //
+         { //
+            _loc1_[_loc2_].isGoPoint = false; //
+            _loc2_++; //
+         } //
+         this.currentFrameGroup.math(); //
+         this.onChange(); //
+         this.restoreSelectedIndices(_loc3_); // 恢复多选
+      } //
+      
+      private function clearHitSelected() : void //
+      { //
+         var _loc1_:Vector.<Frame> = this.getSelectedFrames(); //
+         var _loc3_:Array = this.getSelectedIndices(); //
+         var _loc2_:int = 0; //
+         while(_loc2_ < _loc1_.length) //
+         { //
+            _loc1_[_loc2_].hitPoint = null; //
+            _loc2_++; //
+         } //
+         this.onChange(); //
+         this.restoreSelectedIndices(_loc3_); //
+      } //
+      
+      private function clearSoundSelected() : void //
+      { //
+         var _loc1_:Vector.<Frame> = this.getSelectedFrames(); //
+         var _loc3_:Array = this.getSelectedIndices(); //
+         var _loc2_:int = 0; //
+         while(_loc2_ < _loc1_.length) //
+         { //
+            _loc1_[_loc2_].soundName = ""; //
+            _loc2_++; //
+         } //
+         this.onChange(); //
+         this.restoreSelectedIndices(_loc3_); //
+      } //
+      
+      private function clearStopSelected() : void //
+      { //
+         var _loc1_:Vector.<Frame> = this.getSelectedFrames(); //
+         var _loc3_:Array = this.getSelectedIndices(); //
+         var _loc2_:int = 0; //
+         while(_loc2_ < _loc1_.length) //
+         { //
+            _loc1_[_loc2_].isStop = false; //
+            _loc2_++; //
+         } //
+         this.onChange(); //
+         this.restoreSelectedIndices(_loc3_); //
+      } //
+      
+      private function clearEffectSelected() : void //
+      { //
+         var _loc1_:Vector.<Frame> = this.getSelectedFrames(); //
+         var _loc3_:Array = this.getSelectedIndices(); //
+         var _loc2_:int = 0; //
+         while(_loc2_ < _loc1_.length) //
+         { //
+            _loc1_[_loc2_].clearAllEffect(); //
+            _loc2_++; //
+         } //
+         if(this.observe && this.observe.roleStage) //
+         { //
+            this.observe.roleStage.setGroup(this.currentFrameGroup); //
+         } //
+         this.onChange(); //
+         this.restoreSelectedIndices(_loc3_); //
+      } //
+      
+      private function pasteEffectToSelected(param1:Object) : void //
+      { //
+         if(!this.observe || !this.observe.roleStage) //
+         { //
+            return; //
+         } //
+         var _loc2_:Vector.<Frame> = this.getSelectedFrames(); // 先捕获目标帧
+         var _loc4_:Array = this.getSelectedIndices(); // 再捕获多选索引
+         var _loc3_:int = 0; //
+         while(_loc3_ < _loc2_.length) //
+         { //
+            this.observe.roleStage.createToFrameEffectData(param1,_loc2_[_loc3_]); // 每次内部onChange都会重置多选
+            _loc3_++; //
+         } //
+         this.restoreSelectedIndices(_loc4_); // 全部添加完成后恢复多选
+      } //
+
       private function applyCurrent(param1:FrameSprite) : void //
       { //
          var _loc3_:int = this.frameSprites.indexOf(param1); //

@@ -328,6 +328,11 @@ package views.observe.role
          } //
       } //
       
+      public function get zoom() : Number // 当前画布缩放比例（拖动坐标换算用）
+      { //
+         return this._zoom; //
+      } //
+
       public function set pool(param1:Pool) : void
       {
          this._pool = param1;
@@ -460,7 +465,7 @@ package views.observe.role
          this.node.addChild(_loc3_); //
          this._effect.push(_loc3_); //
          param2.addEffect(_loc3_); // 追加到该帧的effectObjects
-         _loc3_.draw(param2, 0); //
+         _loc3_.draw(this._currentFrame ? this._currentFrame : param2, 0); // 按当前显示帧计算indexAt，避免批量粘贴时非当前帧特效立即显示
          this.onChange(); //
       } //
       

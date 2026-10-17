@@ -77,6 +77,12 @@ package views.observe
       
       private var _movePoint:Point = new Point();
 
+      private var _moveStartPoint:Point = new Point(); // 拖动起点鼠标位置（屏幕坐标）
+
+      private var _moveStartDataX:Number = 0; // 拖动起点对应的 data.x
+
+      private var _moveStartDataY:Number = 0; // 拖动起点对应的 data.y
+
       public static var roleCount:int = 0; // 打开的角本数（用于关闭所有角色后清除特效缓存）
 
       private var _isClosed:Boolean = false; // 防止discarded重复执行
@@ -281,6 +287,12 @@ package views.observe
             this._editFrame = effect.frame; // 特效参数的目标帧
             this._movePoint.x = this.mouseX;
             this._movePoint.y = this.mouseY;
+            this._movePoint.x = this.mouseX;
+            this._movePoint.y = this.mouseY;
+            this._moveStartPoint.x = this.mouseX; // 记录拖动起点，后续 mouseMove 不再修改
+            this._moveStartPoint.y = this.mouseY; //
+            this._moveStartDataX = effect.data.x; // 记录起点数据坐标
+            this._moveStartDataY = effect.data.y; //
             this._effectStageObject.startDrag();
             callLater(function():void
             {
@@ -306,8 +318,15 @@ package views.observe
          var _loc2_:SkillAttribute = this.roleAttribute.stack.selectedChild as SkillAttribute;
          if(Boolean(_loc2_) && Boolean(this._effectStageObject))
          {
-            this._effectStageObject.data.x += this.mouseX - this._movePoint.x;
-            this._effectStageObject.data.y += this.mouseY - this._movePoint.y;
+            // this._effectStageObject.data.x += this.mouseX - this._movePoint.x;
+            // this._effectStageObject.data.y += this.mouseY - this._movePoint.y;
+            var zoom:Number = this.roleStage.zoom; // 画布缩放比例
+            if(zoom <= 0) //
+            { //
+               zoom = 1; //
+            } //
+            this._effectStageObject.data.x = Math.round(this._moveStartDataX + (this.mouseX - this._moveStartPoint.x) / zoom); //
+            this._effectStageObject.data.y = Math.round(this._moveStartDataY + (this.mouseY - this._moveStartPoint.y) / zoom); //
             this._movePoint.x = this.mouseX;
             this._movePoint.y = this.mouseY;
             _loc2_.xLabel.text = this._effectStageObject.datax.toString();
