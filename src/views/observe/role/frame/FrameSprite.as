@@ -21,6 +21,11 @@ package views.observe.role.frame
       
       public function draw() : void
       {
+         if(this.frame == null) //
+         { //
+            this.graphics.clear(); // 帧池残留（帧已删/已撤回）：清空绘制，供 select 的反选循环调用，避免空引用
+            return; //
+         } //
          this.graphics.clear();
          this.graphics.beginFill(16777215,0);
          this.graphics.drawRect(0,0,8,120);

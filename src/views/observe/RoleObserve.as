@@ -471,8 +471,10 @@ package views.observe
                   {
                      return {
                         "percentWidth":100,
-                        "height":210,
-                        "maxHeight":178,
+                        // "height":210,
+                        "height":226, //
+                        // "maxHeight":178,
+                        "maxHeight":226, // 原178：+16补偿时间线横向滚动条占用的高度
                         "minHeight":82,
                         "mxmlContentFactory":new DeferredInstanceFromFunction(_RoleObserve_Array4_c)
                      };

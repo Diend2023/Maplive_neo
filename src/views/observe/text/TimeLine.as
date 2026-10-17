@@ -32,6 +32,7 @@ package views.observe.text
    import mx.styles.*;
    import spark.components.BorderContainer;
    import spark.components.Group;
+   import spark.components.Scroller; //
    
    public class TimeLine extends Group
    {
@@ -49,6 +50,10 @@ package views.observe.text
       private var _xml:XML;
       
       private var _frames:Vector.<TextSpriteFrame>;
+
+      private var _frameScroller:Scroller; // 帧区滚动容器引用（横向滚动 + 切换帧定位）
+
+      private var _ufwDeferCount:int = 0; // updateFrameWidth推迟重算次数：首帧未布局完时width=0，防死循环上限3次
       
       public var currentFrame:TextSpriteFrame;
       
@@ -86,8 +91,43 @@ package views.observe.text
          _loc2_.graphics.endFill();
          _loc2_.alpha = 0.5;
          this.frameDarw.addChild(_loc2_);
+         callLater(this.wrapFrameScroller); // 延后包裹：本组件是外层Scroller的viewport，初始化时序里initialize会重入/重复派发，当场移动frameDarw会#1009
       }
       
+      private function wrapFrameScroller() : void // 把帧绘制区包进带横向滚动条的Scroller（onInit里时序不安全，callLater后执行）
+      { //
+         if(this._frameScroller != null) //
+         { //
+            return; // 已包裹过：initialize重复派发时防重入
+         } //
+         var _loc3_:DisplayObjectContainer = this.frameDarw.parent; // frameDarw的实际父级是BorderContainer皮肤里的contentGroup（SkinnableContainer的MXML子对象加在皮肤上，不是容器实例），按BorderContainer找必然为null
+         if(_loc3_ == null) //
+         { //
+            return; // 父容器尚未就绪，放弃包裹
+         } //
+         var _loc4_:Group = new Group(); // 滚动视口：帧多出可视范围时由 Scroller 提供横向滚动条
+         _loc4_.percentWidth = 100; //
+         _loc4_.percentHeight = 100; //
+         _loc4_.addElement(this.frameDarw); // 把帧绘制区移入视口（自动从原容器移除），Group 必须用 addElement
+         var _loc5_:Scroller = new Scroller(); //
+         _loc5_.percentWidth = 100; //
+         _loc5_.percentHeight = 100; //
+         _loc5_.viewport = _loc4_; //
+         _loc5_.addEventListener(Event.RESIZE,this.onFrameScrollerResize); // 滚动区尺寸变化（窗口缩放/首次布局）时重算：非最大化/缩放是原有调用点覆盖不到的场景
+         var _loc6_:Group = _loc3_ as Group; // 父级是皮肤contentGroup（spark Group）必须用addElement，addChild会抛"not available"错
+         if(_loc6_ != null) //
+         { //
+            _loc6_.addElement(_loc5_); //
+         } //
+         else //
+         { //
+            _loc3_.addChild(_loc5_); //
+         } //
+         this.frameDarw.percentHeight = 100; //
+         this._frameScroller = _loc5_; //
+         this.updateFrameWidth(this._frames.length); // 包裹后补一次宽度：若setXml在包裹前已跑过，这里补上滚动范围
+      } //
+
       public function setXml(param1:XML) : void
       {
          var _loc3_:Object = null;
@@ -106,6 +146,7 @@ package views.observe.text
          this.currentFrame = this._frames[0];
          this.updateEff();
          this.onSelect(this._frames[0]);
+         this.updateFrameWidth(_loc2_.length()); // 帧多时扩展绘制区宽度以显示横向滚动条
       }
       
       public function set frame(param1:int) : void
@@ -117,6 +158,7 @@ package views.observe.text
          this.currentFrame.select(false);
          this._frames[param1].select(true);
          this.currentFrame = this._frames[param1];
+         this.ensureVisible(param1); // 切换帧时滚动到对应位置
       }
       
       public function get frame() : int
@@ -160,6 +202,74 @@ package views.observe.text
          this.currentFrame.select(true);
       }
       
+      private function updateFrameWidth(param1:int) : void // 帧过多时扩展绘制区宽度，使 Scroller 出现横向滚动条
+      { //
+         if(this.frameDarw == null) //
+         { //
+            return; //
+         } //
+         var _loc3_:Scroller = this._frameScroller; //
+         if(_loc3_ != null && !isNaN(_loc3_.width) && _loc3_.width <= 0 && this._ufwDeferCount < 3) // Scroller首帧可能还没布局完(width=0)：此时"帧少铺满"分支按0算，任何帧数都会被误判成需要滚动条、高度错误抬高；推迟到布局后重算
+         { //
+            this._ufwDeferCount++; //
+            callLater(this.updateFrameWidth,[param1]); // 绑定方法引用+参数数组（与callLater(this.wrapFrameScroller)同款）；内联闭包里写this.xxx在本工程会报#1006
+            return; //
+         } //
+         this._ufwDeferCount = 0; //
+         var _loc2_:Number = param1 * 8 + 16; // 帧宽 8 + 右侧余量
+         if(_loc3_ != null && !isNaN(_loc3_.width)) //
+         { //
+            _loc2_ = Math.max(_loc2_, _loc3_.width); // 帧少时至少铺满视口，避免无帧区域鼠标失效
+         } //
+         this.frameDarw.width = _loc2_; //
+         var _loc7_:Boolean = _loc3_ != null && !isNaN(_loc3_.width) && _loc2_ > _loc3_.width; // 内容宽超过视口宽时Scroller才会显示横向滚动条
+         this.height = _loc7_ ? 48 : 32; // 动态高度：有滚动条时+16让它占独立一条（不与帧条平分），无滚动条时保持32不留空白
+         var _loc4_:Group = _loc3_ != null ? (_loc3_.viewport as Group) : null; //
+         if(_loc4_ != null) //
+         { //
+            _loc4_.invalidateSize(); // 帧区改宽不会自动触发父布局重新测量：不强制的话Scroller的contentWidth停在旧值、没有可滚范围（role版同款问题）
+            _loc4_.validateNow(); //
+            if(_loc3_ != null) //
+            { //
+               _loc3_.validateNow(); // 只验证视口不够：Scroller要自己重算才会刷新滚动条显隐
+            } //
+         } //
+      } //
+
+      private function ensureVisible(param1:int) : void // 切换帧时把对应帧滚入可见区域
+      { //
+         if(param1 < 0) //
+         { //
+            return; //
+         } //
+         var _loc2_:Scroller = this._frameScroller; //
+         if(_loc2_ == null || _loc2_.viewport == null) //
+         { //
+            return; //
+         } //
+         var _loc3_:Number = _loc2_.viewport.width; //
+         if(isNaN(_loc3_) || _loc3_ <= 0) //
+         { //
+            return; //
+         } //
+         var _loc4_:Number = param1 * 8; // 帧在内容中的左边界（帧宽 8）
+         var _loc5_:Number = _loc4_ + 8; //
+         var _loc6_:Number = _loc2_.viewport.horizontalScrollPosition; //
+         if(_loc4_ < _loc6_) //
+         { //
+            _loc2_.viewport.horizontalScrollPosition = _loc4_; //
+         } //
+         else if(_loc5_ > _loc6_ + _loc3_) //
+         { //
+            _loc2_.viewport.horizontalScrollPosition = _loc5_ - _loc3_; //
+         } //
+      } //
+
+      private function onFrameScrollerResize(param1:Event) : void // 滚动区尺寸变化：重算帧区宽高与滚动条
+      { //
+         this.updateFrameWidth(this._frames.length); //
+      } //
+
       private function _TimeLine_BorderContainer1_c() : BorderContainer
       {
          var _loc1_:BorderContainer = new BorderContainer();

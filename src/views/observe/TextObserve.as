@@ -677,9 +677,11 @@ package views.observe
          return [this._TextObserve_HDividedBox1_c()];
       }
       
-      private function _TextObserve_HDividedBox1_c() : HDividedBox
+      // private function _TextObserve_HDividedBox1_c() : HDividedBox
+      private function _TextObserve_HDividedBox1_c() : VDividedBox //
       {
-         var temp:HDividedBox = new HDividedBox();
+         // var temp:HDividedBox = new HDividedBox();
+         var temp:VDividedBox = new VDividedBox(); // 原HDividedBox：改为上下分栏——时间线独立成满宽顶栏，原右侧XML文本区移到下排右侧，时间线横跨整个窗口
          temp.percentWidth = 100;
          temp.percentHeight = 100;
          if(!temp.document)
@@ -687,34 +689,78 @@ package views.observe
             temp.document = this;
          }
          temp.mx_internal::_documentDescriptor = new UIComponentDescriptor({
-            "type":HDividedBox,
+            // "type":HDividedBox,
+            "type":VDividedBox, //
             "propertiesFactory":function():Object
             {
                return {"childDescriptors":[new UIComponentDescriptor({
-                  "type":BorderContainer,
-                  "id":"image",
-                  "stylesFactory":function():void
-                  {
-                     this.backgroundAlpha = 0.5;
-                  },
-                  "propertiesFactory":function():Object
-                  {
+               //    "type":BorderContainer,
+               //    "id":"image",
+               //    "stylesFactory":function():void
+               //    {
+               //       this.backgroundAlpha = 0.5;
+               //    },
+               //    "propertiesFactory":function():Object
+               //    {
+               //       return {
+               //          "percentWidth":50,
+               //          "percentHeight":100,
+               //          "minWidth":200,
+               //          "mxmlContentFactory":new DeferredInstanceFromFunction(_TextObserve_Array2_c)
+               //       };
+               //    }
+               // }),new UIComponentDescriptor({
+               //    "type":VGroup,
+               //    "propertiesFactory":function():Object
+               //    {
+               //       return {
+               //          "percentWidth":50,
+               //          "percentHeight":100,
+               //          "mxmlContent":[_TextObserve_TextArea2_i()]
+               //       };
+                  "type":Scroller, //
+                  "propertiesFactory":function():Object //
+                  { //
+                     return { //
+                        "percentWidth":100, //
+                        "height":48, //
+                        "viewport":_TextObserve_TimeLine1_i() // 时间线满宽顶栏（原嵌在左半栏内，宽度只有一半）
+                     }; //
+                  } //
+               }),new UIComponentDescriptor({ //
+                  "type":HDividedBox, //
+                  "propertiesFactory":function():Object //
+                  { //
                      return {
-                        "percentWidth":50,
-                        "percentHeight":100,
-                        "minWidth":200,
-                        "mxmlContentFactory":new DeferredInstanceFromFunction(_TextObserve_Array2_c)
-                     };
-                  }
-               }),new UIComponentDescriptor({
-                  "type":VGroup,
-                  "propertiesFactory":function():Object
-                  {
-                     return {
-                        "percentWidth":50,
-                        "percentHeight":100,
-                        "mxmlContent":[_TextObserve_TextArea2_i()]
-                     };
+                        "percentWidth":100, //
+                        "percentHeight":100, //
+                        "childDescriptors":[new UIComponentDescriptor({ //
+                           "type":BorderContainer, //
+                           "id":"image", //
+                           "stylesFactory":function():void //
+                           { //
+                              this.backgroundAlpha = 0.5; //
+                           }, //
+                           "propertiesFactory":function():Object //
+                           { //
+                              return { //
+                                 "percentWidth":50, //
+                                 "percentHeight":100, //
+                                 "minWidth":200, //
+                                 "mxmlContentFactory":new DeferredInstanceFromFunction(_TextObserve_Array2_c) //
+                              }; //
+                           } //
+                     }),new UIComponentDescriptor({ //
+                        "type":VGroup, //
+                        "propertiesFactory":function():Object //
+                        { //
+                           return { //
+                              "percentWidth":50, //
+                              "percentHeight":100, //
+                              "mxmlContent":[_TextObserve_TextArea2_i()] //
+                           }; //
+                        } //
+                     })]}; //
                   }
                })]};
             }
@@ -749,7 +795,8 @@ package views.observe
                         "percentWidth":100,
                         "percentHeight":100,
                         "gap":0,
-                        "mxmlContent":[_TextObserve_Scroller1_c(),_TextObserve_BorderContainer2_i(),_TextObserve_Scroller2_c()]
+                        // "mxmlContent":[_TextObserve_Scroller1_c(),_TextObserve_BorderContainer2_i(),_TextObserve_Scroller2_c()]
+                        "mxmlContent":[_TextObserve_BorderContainer2_i(),_TextObserve_Scroller2_c()] // 时间线Scroller1已移到顶层满宽顶栏
                      };
                   }
                }),new UIComponentDescriptor({

@@ -118,6 +118,10 @@ package views.observe.role
       
       private var frameIndex:int = -1;
 
+      private var _frameScroller:Scroller; // 帧区滚动容器引用（横向滚动 + 切换帧定位）
+
+      private var _frameLabels:VGroup; // 左侧标签列（时间轴/元素/停顿/音效/碰撞/位移）：宽度随内容扩展，避免横向滚动后行底色出现接缝
+
       private var _anchorIndex:int = -1; // Shift范围选择锚点（最后点击的帧）
 
       private var _multiSelect:Boolean = false; // 是否多选模式
@@ -206,6 +210,7 @@ package views.observe.role
       
       protected function onInit(param1:FlexEvent) : void
       {
+         if(this._fps != null) return; // 防重入：避免背景重复添加、右键监听重复绑定
          var _loc2_:Sprite = new Sprite();
          _loc2_.graphics.beginBitmapFill((new this.timeline() as Bitmap).bitmapData,null,true);
          _loc2_.graphics.drawRect(0,0,2048,120);
@@ -347,6 +352,7 @@ package views.observe.role
          var _loc2_:FrameSprite = param1.target as FrameSprite;
          if(_loc2_)
          {
+            if(_loc2_.frame == null) return; // 帧池残留的隐藏 sprite（帧已删/已撤回）：不响应，避免 updateMenu/onMouseSelect 读到空帧
             if(param1.ctrlKey) //
             { //
                this.toggleSelect(_loc2_); // Ctrl：逐个切换选中
@@ -406,7 +412,9 @@ package views.observe.role
       
       private function applyCurrent(param1:FrameSprite) : void //
       { //
-         this.frameIndex = this.frameSprites.indexOf(param1); //
+         var _loc3_:int = this.frameSprites.indexOf(param1); //
+         if(_loc3_ < 0 || _loc3_ >= this.currentFrameGroup.frames.length || param1.frame == null) return; // 残留/越界 sprite（帧已删或已撤回）：忽略，别把预览切到已撤回的帧
+         this.frameIndex = _loc3_; //
          this.currentFrame = param1.frame; //
          this.updateFrame(); //
          if(this.onSelect != null) //
@@ -493,6 +501,16 @@ package views.observe.role
          this.currentFrameGroup = param1;
          this.fpsNumber.value = this.currentFrameGroup.fps;
          this._fps.fps = this.currentFrameGroup.fps;
+         var _loc11_:int = this.frameDarw.numChildren - 1; // 摘除未被 frameSprites 跟踪的孤儿帧sprite（历史遗留显示对象），杜绝"不存在帧"的特效条残留渲染
+         while(_loc11_ >= 0) //
+         { //
+            var _loc12_:FrameSprite = this.frameDarw.getChildAt(_loc11_) as FrameSprite; //
+            if(_loc12_ != null && this.frameSprites.indexOf(_loc12_) == -1) //
+            { //
+               this.frameDarw.removeChildAt(_loc11_); //
+            } //
+            _loc11_--; //
+         } //
          for(_loc2_ in this.frameSprites)
          {
             this.frameSprites[_loc2_].visible = false;
@@ -519,10 +537,20 @@ package views.observe.role
             }
             this.frameSprites[_loc3_].frame = _loc4_;
          }
+         var _loc6_:int = this.currentFrameGroup.frames.length; // 尾部残留sprite直接移出显示列表与池：仅隐藏仍可能被选中/重绘，直接移除最稳
+         while(this.frameSprites.length > _loc6_) //
+         { //
+            var _loc7_:FrameSprite = this.frameSprites.pop(); //
+            if(_loc7_.parent) //
+            { //
+               _loc7_.parent.removeChild(_loc7_); //
+            } //
+         } //
          this.select(this.frameIndex);
          this.updateMessage();
+         this.updateFrameContentWidth(); // 按帧数扩展绘制区宽度（帧多出视口时显示横向滚动条）
       }
-      
+
       public function updateMessage() : void
       {
          var _loc5_:Object = null;
@@ -613,6 +641,12 @@ package views.observe.role
          {
             return;
          }
+         var _loc6_:int = param1 is FrameSprite ? this.frameSprites.indexOf(param1 as FrameSprite) : int(param1); // 统一换成下标：sprite 入口也要校验（池里残留的隐藏 sprite 指向已删除/已撤回的帧）
+         if(_loc6_ < 0 || _loc6_ >= this.currentFrameGroup.frames.length || this.frameSprites[_loc6_].frame == null) //
+         { //
+            _loc6_ = this.frameIndex >= 0 && this.frameIndex < this.currentFrameGroup.frames.length ? this.frameIndex : 0; // 越界：保持当前帧，没有则回第 0 帧（与原 int 分支语义一致）
+         } //
+         param1 = this.frameSprites[_loc6_]; // 校验结果必须生效：重定向到有效下标，否则残留/空帧 sprite 仍会被选中，把 null 帧喂给 updateFrame/onSelect
          if(!(param1 is FrameSprite))
          {
             if(param1 < 0 || param1 >= this.currentFrameGroup.frames.length)
@@ -642,8 +676,77 @@ package views.observe.role
          this._multiSelect = false; // 单选原语：清除多选模式
          this._anchorIndex = this.frameIndex; //
          this.cframe.text = "当前帧：" + this.frameIndex;
+         this.ensureFrameVisible(this.frameIndex); // 切换帧时滚动到对应位置
       }
       
+      private function updateFrameContentWidth() : void // 帧过多时扩展绘制区宽度，使 Scroller 出现横向滚动条
+      { //
+         if(this.frameDarw == null) //
+         { //
+            return; //
+         } //
+         var _loc1_:int = this.currentFrameGroup ? this.currentFrameGroup.frames.length : 0; //
+         var _loc2_:Number = _loc1_ * 8 + 16; // 帧宽 8 + 右侧余量
+         var _loc3_:Scroller = this._frameScroller; //
+         if(_loc3_ != null && !isNaN(_loc3_.width)) //
+         { //
+            _loc2_ = Math.max(_loc2_, _loc3_.width - 70); // 帧少时铺满视口（扣除左侧 70 标签列），不出现滚动条
+         } //
+         this.frameDarw.width = _loc2_; //
+         if(this._frameLabels != null) //
+         { //
+            this._frameLabels.width = 70 + _loc2_; // 标签列铺满内容宽（70标签列+帧区宽）：否则横向滚动后右侧行底色断掉，露出无底色的帧列
+         } //
+         var _loc6_:Group = this._frameScroller != null ? (this._frameScroller.viewport as Group) : null; //
+         if(_loc6_ != null) //
+         { //
+            _loc6_.invalidateSize(); // 帧区改宽不会自动触发父布局重新测量，这里强制一次，确保Scroller立即拿到新的可滚范围
+            _loc6_.validateNow(); //
+         } //
+         var _loc4_:int = this.frameDarw.numChildren - 1; // 背景原是固定2048宽重复填充（2048/8=256帧的"默认长度"）：帧数超过后背景缺席，后面的帧没有列底纹、看着像"不存在的帧"，且会把可滚范围撑到2048+70。这里按内容宽度重绘背景；动态查找背景Sprite，不依赖字段赋值，漏赋值也不会静默失效
+         while(_loc4_ >= 0) //
+         { //
+            var _loc5_:Sprite = this.frameDarw.getChildAt(_loc4_) as Sprite; //
+            if(_loc5_ != null && !(_loc5_ is FrameSprite)) //
+            { //
+               _loc5_.graphics.clear(); //
+               _loc5_.graphics.beginBitmapFill((new this.timeline() as Bitmap).bitmapData,null,true); //
+               _loc5_.graphics.drawRect(0,0,_loc2_,120); //
+               _loc5_.graphics.endFill(); //
+            } //
+            _loc4_--; //
+         } //
+      } //
+
+      private function ensureFrameVisible(param1:int) : void // 切换帧时把对应帧滚入可见区域
+      { //
+         if(param1 < 0) //
+         { //
+            return; //
+         } //
+         var _loc1_:Scroller = this._frameScroller; //
+         if(_loc1_ == null || _loc1_.viewport == null) //
+         { //
+            return; //
+         } //
+         var _loc2_:Number = _loc1_.viewport.width; //
+         if(isNaN(_loc2_) || _loc2_ <= 0) //
+         { //
+            return; //
+         } //
+         var _loc3_:Number = 70 + param1 * 8; // frameDarw 左边距 70 + 帧宽 8
+         var _loc4_:Number = _loc3_ + 8; //
+         var _loc5_:Number = _loc1_.viewport.horizontalScrollPosition; //
+         if(_loc3_ < _loc5_) //
+         { //
+            _loc1_.viewport.horizontalScrollPosition = _loc3_; //
+         } //
+         else if(_loc4_ > _loc5_ + _loc2_) //
+         { //
+            _loc1_.viewport.horizontalScrollPosition = _loc4_ - _loc2_; //
+         } //
+      } //
+
       public function updateFrame() : void
       {
          this.xText.text = String(this.currentFrame.gox);
@@ -709,6 +812,10 @@ package views.observe.role
             this.currentFrameGroup.add(new Frame(_loc2_),this.frameIndex + 1);
             ++this.frameIndex;
             this.setFrameGroup(this.currentFrameGroup);
+            if(this.observe && this.observe.roleStage) //
+            { //
+               this.observe.roleStage.setGroup(this.currentFrameGroup); // 重建舞台特效显示列表，与粘贴帧路径一致，防止舞台残留已不存在帧的特效
+            } //
             this.onChange();
          }
       }
@@ -822,22 +929,32 @@ package views.observe.role
 
       public function nextFrame() : void
       {
-         var _loc1_:int = this.currentFrame.at + 1;
-         if(_loc1_ > this.frameSprites.length - 1)
-         {
-            _loc1_ = int(this.frameSprites.length - 1);
-         }
-         this.select(this.frameSprites[_loc1_]);
+         // var _loc1_:int = this.currentFrame.at + 1;
+         // if(_loc1_ > this.frameSprites.length - 1)
+         // {
+         //    _loc1_ = int(this.frameSprites.length - 1);
+         // }
+         // this.select(this.frameSprites[_loc1_]);
+         var _loc2_:int = this.currentFrameGroup ? this.currentFrameGroup.frames.length - 1 : -1; // 上界用当前组帧数，不能用只增不减的 frameSprites.length（撤销后会取到已撤回的帧）
+         var _loc1_:int = (this.currentFrame ? this.currentFrame.at : this.frameIndex) + 1; //
+         if(_loc1_ > _loc2_) _loc1_ = _loc2_; //
+         if(_loc1_ < 0) _loc1_ = 0; //
+         this.select(_loc1_); //
       }
       
       public function lastFrame() : void
       {
-         var _loc1_:int = this.currentFrame.at - 1;
-         if(_loc1_ < 0)
-         {
-            _loc1_ = 0;
-         }
-         this.select(this.frameSprites[_loc1_]);
+         // var _loc1_:int = this.currentFrame.at - 1;
+         // if(_loc1_ < 0)
+         // {
+         //    _loc1_ = 0;
+         // }
+         // this.select(this.frameSprites[_loc1_]);
+         var _loc2_:int = this.currentFrameGroup ? this.currentFrameGroup.frames.length - 1 : -1; //
+         var _loc1_:int = (this.currentFrame ? this.currentFrame.at : this.frameIndex) - 1; //
+         if(_loc1_ > _loc2_) _loc1_ = _loc2_; //
+         if(_loc1_ < 0) _loc1_ = 0; //
+         this.select(_loc1_); //
       }
       
       public function dropString(param1:Object) : String
@@ -1329,6 +1446,7 @@ package views.observe.role
          _loc1_.left = 0;
          _loc1_.right = 0;
          _loc1_.viewport = this._TimeLine_Group2_c();
+         this._frameScroller = _loc1_; //
          if(!_loc1_.document)
          {
             _loc1_.document = this;
@@ -1340,8 +1458,9 @@ package views.observe.role
       {
          var _loc1_:Group = new Group();
          _loc1_.percentHeight = 100;
-         _loc1_.left = 0;
-         _loc1_.right = 0;
+         // _loc1_.left = 0;
+         // _loc1_.right = 0;
+         _loc1_.percentWidth = 100; // 视口宽度必须锁定为Scroller宽（TMXObserve可用同款写法）：left/right约束会让视口宽度取内容测量宽，帧数超出原宽后视口比Scroller还宽，右侧内容溢出渲染
          _loc1_.mxmlContent = [this._TimeLine_VGroup1_c(),this._TimeLine_UIComponent1_i()];
          if(!_loc1_.document)
          {
@@ -1355,8 +1474,9 @@ package views.observe.role
          var _loc1_:VGroup = new VGroup();
          _loc1_.gap = 0;
          _loc1_.percentHeight = 100;
-         _loc1_.left = 0;
-         _loc1_.right = 0;
+         // _loc1_.left = 0;
+         // _loc1_.right = 0;
+         this._frameLabels = _loc1_; // 保存引用：宽度改为随内容宽度设置。原约束使标签列只有视口宽，横向滚动后内容右侧没有行底色，真实帧裸渲看着像"不存在的帧"
          _loc1_.mxmlContent = [this._TimeLine_BorderContainer3_c(),this._TimeLine_BorderContainer5_c(),this._TimeLine_BorderContainer7_c(),this._TimeLine_BorderContainer9_c(),this._TimeLine_BorderContainer11_c(),this._TimeLine_BorderContainer13_c()];
          if(!_loc1_.document)
          {
@@ -1709,8 +1829,9 @@ package views.observe.role
       private function _TimeLine_UIComponent1_i() : UIComponent
       {
          var _loc1_:UIComponent = new UIComponent();
-         _loc1_.left = 70;
-         _loc1_.right = 0;
+         // _loc1_.left = 70;
+         // _loc1_.right = 0;
+         _loc1_.x = 70; // 原left=70约束：约束元素不参与BasicLayout内容测量，Scroller的contentWidth算不进帧区宽度导致无可滚范围；改用x定位（TMXObserve的mapDarw同为零约束）
          _loc1_.percentHeight = 100;
          _loc1_.addEventListener("mouseDown",this.__frameDarw_mouseDown);
          _loc1_.addEventListener("rightMouseDown",this.__frameDarw_rightMouseDown);
